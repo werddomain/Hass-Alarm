@@ -58,9 +58,13 @@ namespace Hass_Alarm
 
             app.UseAuthentication();
             app.UseAuthorization();
-
+            
             app.UseEndpoints(endpoints =>
             {
+                endpoints.MapAreaControllerRoute(name: "AdminRoute",
+                    areaName: "Admin",
+                    pattern: "{area:exists}/{controller=Default}/{action=Index}/{id?}"
+                    );
                 endpoints.MapControllerRoute(
                     name: "default",
                     pattern: "{controller=Home}/{action=Index}/{id?}");

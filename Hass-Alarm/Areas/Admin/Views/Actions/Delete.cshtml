@@ -1,0 +1,57 @@
+﻿@model Hass_Alarm.Data.Models.Action
+
+@{
+    ViewData["Title"] = "Delete";
+}
+
+<h1>Delete</h1>
+
+<h3>Are you sure you want to delete this?</h3>
+<div>
+    <h4>Action</h4>
+    <hr />
+    <dl class="row">
+        <dt class = "col-sm-2">
+            @Html.DisplayNameFor(model => model.Name)
+        </dt>
+        <dd class = "col-sm-10">
+            @Html.DisplayFor(model => model.Name)
+        </dd>
+        <dt class = "col-sm-2">
+            @Html.DisplayNameFor(model => model.Input_Boolean_EntityId)
+        </dt>
+        <dd class = "col-sm-10">
+            @Html.DisplayFor(model => model.Input_Boolean_EntityId)
+        </dd>
+        <dt class = "col-sm-2">
+            @Html.DisplayNameFor(model => model.Input_Boolean_SetState)
+        </dt>
+        <dd class = "col-sm-10">
+            @Html.DisplayFor(model => model.Input_Boolean_SetState)
+        </dd>
+        <dt class = "col-sm-2">
+            @Html.DisplayNameFor(model => model.Service_Domain)
+        </dt>
+        <dd class = "col-sm-10">
+            @Html.DisplayFor(model => model.Service_Domain)
+        </dd>
+        <dt class = "col-sm-2">
+            @Html.DisplayNameFor(model => model.Service_Name)
+        </dt>
+        <dd class = "col-sm-10">
+            @Html.DisplayFor(model => model.Service_Name)
+        </dd>
+        <dt class = "col-sm-2">
+            @Html.DisplayNameFor(model => model.Service_Fields)
+        </dt>
+        <dd class = "col-sm-10">
+            @Html.DisplayFor(model => model.Service_Fields)
+        </dd>
+    </dl>
+    
+    <form asp-action="Delete">
+        <input type="hidden" asp-for="Id" />
+        <input type="submit" value="Delete" class="btn btn-danger" /> |
+        <a asp-action="Index">Back to List</a>
+    </form>
+</div>
