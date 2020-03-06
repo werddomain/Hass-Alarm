@@ -47,6 +47,8 @@ namespace Hass_Alarm.Controllers
             var model = new PanelModel();
             var statesClient = ClientFactory.GetClient<StatesClient>();
             var armT = statesClient.GetState(Entity_Arm);
+            var servicesClient = ClientFactory.GetClient<ServiceClient>();
+          
             //var disarmT = statesClient.GetState(Entity_Disarm);
             var armHomeT = !string.IsNullOrEmpty(Entity_ArmHome) ? statesClient.GetState(Entity_ArmHome) : null;
 
