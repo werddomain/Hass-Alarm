@@ -1,0 +1,14 @@
+[
+  {
+    "outputFileName": "wwwroot/Panel/Script.min.js",
+    "inputFiles": [
+      "wwwroot/Panel/Script.js"
+    ]
+  },
+  {
+    "outputFileName": "wwwroot/Panel/Style.min.css",
+    "inputFiles": [
+      "wwwroot/Panel/Style.css"
+    ]
+  }
+]

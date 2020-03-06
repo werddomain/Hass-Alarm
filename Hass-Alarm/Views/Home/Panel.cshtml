@@ -1,0 +1,183 @@
+﻿@using Hass_Alarm.Views.Home
+@model PanelModel
+@{
+    Layout = null;
+}
+
+<!doctype html>
+<html lang="en">
+
+<head>
+    <!-- Required meta tags -->
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1, shrink-to-fit=no">
+
+    <!-- <link rel="stylesheet" href="https://fonts.googleapis.com/icon?family=Material+Icons">
+    <link rel="stylesheet" href="https://code.getmdl.io/1.3.0/material.indigo-pink.min.css"> -->
+    <!-- <script defer src="https://code.getmdl.io/1.3.0/material.min.js"></script> -->
+    <!-- <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/material-design-iconic-font/2.2.0/css/material-design-iconic-font.min.css"> -->
+
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/MaterialDesign-Webfont/4.9.95/css/materialdesignicons.min.css">
+    <style>
+   @@font-face {
+  font-family: "Material Design Icons";
+  src: url("https://cdnjs.cloudflare.com/ajax/libs/MaterialDesign-Webfont/4.9.95/fonts/materialdesignicons-webfont.eot?v=4.9.95");
+  src: url("https://cdnjs.cloudflare.com/ajax/libs/MaterialDesign-Webfont/4.9.95/fonts/materialdesignicons-webfont.eot?#iefix&v=4.9.95") format("embedded-opentype"), url("https://cdnjs.cloudflare.com/ajax/libs/MaterialDesign-Webfont/4.9.95/fonts/materialdesignicons-webfont.woff2?v=4.9.95") format("woff2"), url("https://cdnjs.cloudflare.com/ajax/libs/MaterialDesign-Webfont/4.9.95/fonts/materialdesignicons-webfont.woff?v=4.9.95") format("woff"), url("https://cdnjs.cloudflare.com/ajax/libs/MaterialDesign-Webfont/4.9.95/fonts/materialdesignicons-webfont.ttf?v=4.9.95") format("truetype");
+  font-weight: normal;
+  font-style: normal;
+}
+    </style>
+    <link href="~/Panel/Style.css" rel="stylesheet" />
+    <!-- Bootstrap CSS -->
+    <link rel="stylesheet" href="https://stackpath.bootstrapcdn.com/bootstrap/4.4.1/css/bootstrap.min.css"
+          integrity="sha384-Vkoo8x4CGsO3+Hhxv8T/Q5PaXtkKtu6ug5TOeNV6gBiFeWPGFN9MuhOf23Q9Ifjh" crossorigin="anonymous">
+    
+    <title>Alarm Panel</title>
+</head>
+
+<body>
+    <input type="hidden" id="startup-state" value="{{{payload.state}}}" />
+    <div class="container">
+        <div class="d-flex">
+            <div class="card w-100">
+                <div class="card-body">
+                    <div class="State">
+                        <h2 id='StateColor'><i id="StateIcon"></i> <span id="StateText"></span></h2>
+                    </div>
+                </div>
+            </div>
+
+            <div class="UnLocked hidden">
+                <button class="btn btn-danger btn-lg cmdButton" data-state="arm" type="button"><i class="mdi mdi-bell-alert"></i> Armer</button>
+                <button class="btn btn-warning btn-lg cmdButton" data-state="arm_home" type="button"><i class="mdi mdi-bell-circle"></i> Armer Maison</button>
+                <button class="btn btn-success btn-lg cmdButton" data-state="disarm" type="button"><i class="mdi mdi-bell-off"></i> Désarmer</button>
+                <br />
+                <button class="btn btn-primary btn-lg btn-lock" type="button"><i class="mdi mdi-lock"></i> Verouiller</button>
+            </div>
+        </div>
+    </div>
+    <div class="keypadwrapper Locked">
+        <div class="inputwrapper" id="numberInputs">
+            <span class="numberinput"></span>
+            <span class="numberinput"></span>
+            <span class="numberinput"></span>
+            <span class="numberinput"></span>
+            <span class="numberinput"></span>
+        </div>
+        <div class="keypad">
+            <div id="lineone" class="numberline">
+                <div class="content">
+                    <div>
+                        <span class="number">1</span>
+                        <span>___</span>
+                    </div>
+                </div>
+                <div class="content">
+                    <div>
+                        <span class="number">2</span>
+                        <span>ABC</span>
+                    </div>
+                </div>
+                <div class="content">
+                    <div>
+                        <span class="number">3</span>
+                        <span>DEF</span>
+                    </div>
+                </div>
+            </div>
+            <div id="linetwo" class="numberline">
+                <div class="content">
+                    <div>
+                        <span class="number">4</span>
+                        <span>GHI</span>
+                    </div>
+                </div>
+                <div class="content">
+                    <div>
+                        <span class="number">5</span>
+                        <span>JKL</span>
+                    </div>
+                </div>
+                <div class="content">
+                    <div>
+                        <span class="number">6</span>
+                        <span>MNO</span>
+                    </div>
+                </div>
+            </div>
+            <div id="linethree" class="numberline">
+                <div class="content">
+                    <div>
+                        <span class="number">7</span>
+                        <span>PQRS</span>
+                    </div>
+                </div>
+                <div class="content">
+                    <div>
+                        <span class="number">8</span>
+                        <span>TUV</span>
+                    </div>
+                </div>
+                <div class="content">
+                    <div>
+                        <span class="number">9</span>
+                        <span>WXYZ</span>
+                    </div>
+                </div>
+            </div>
+            <div id="linefour" class="numberline">
+                <div class="content">
+                    <div>
+                        <span class="number delete">
+                            <i class="mdi mdi-backspace"></i>
+                        </span>
+                        <span>___</span>
+                    </div>
+                </div>
+                <div class="content">
+                    <div>
+                        <span class="number">0</span>
+                        <span>___</span>
+                    </div>
+                </div>
+                <div class="content">
+                    <div>
+                        <span class="number accept"><i class="mdi mdi-check-circle"></i> </span>
+                        <span>___</span>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+
+        <div style="display: none;">
+            <div>
+                <form method="post" action="/endpoint/{{url}}" ajax="true">
+                    <input type="hidden" name="code" id="pin-code">
+                    <input type="hidden" name="action" id="action-field">
+
+                    <input type="submit" value="Submit" id="send">
+                </form>
+            </div>
+            <div>
+                <span id="result"></span>
+            </div>
+        </div>
+    </div>
+
+    <!-- Optional JavaScript -->
+    <!-- jQuery first, then Popper.js, then Bootstrap JS -->
+    <script src="https://code.jquery.com/jquery-3.4.1.min.js"
+            integrity="sha256-CSXorXvZcTkaix6Yvo6HppcZGetbYMGWSFlBw8HfCJo=" crossorigin="anonymous"></script>
+    <script src="https://cdn.jsdelivr.net/npm/popper.js@1.16.0/dist/umd/popper.min.js"
+            integrity="sha384-Q6E9RHvbIyZFJoft+2mJbHaEWldlvI9IOYy5n3zV9zzTtmI3UksdQRVvoxMfooAo"
+            crossorigin="anonymous"></script>
+    <script src="https://stackpath.bootstrapcdn.com/bootstrap/4.4.1/js/bootstrap.min.js"
+            integrity="sha384-wfSDF2E50Y2D1uUdj0O3uMBJnjuUD4Ih7YwaYd1iqfktj0Uod8GCExl3Og8ifwB6"
+            crossorigin="anonymous"></script>
+
+    <script src="~/Panel/Script.js"></script>
+    
+</body>
+
+</html>

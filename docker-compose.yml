@@ -1,0 +1,38 @@
+version: '3.4'
+
+services:
+  hass-alarm-mysql:
+    image: mysql:8.0.19
+    container_name: hass-alarm-mysql
+    environment:
+      MYSQL_ROOT_PASSWORD: "p4ssw0r#"
+      MYSQL_DATABASE: "hass_alarm_mysql"
+    volumes:
+      - ./mysql-data:/var/lib/mysql
+    restart: always
+    networks:
+      - hass-alarm-net
+  hass-alarm:
+    image: ${DOCKER_REGISTRY-}hassalarm
+    environment:
+      ConnectionStrings__DefaultConnection: "Server=hass-alarm-mysql;Database=hass_alarm_mysql;User=root;Password=p4ssw0r#;TreatTinyAsBoolean=true;"
+      #Ha__Host: "hassio.local:8123"
+      #Ha__ApiKey: "" #Ha__Host:8123/profile
+      Ha__Entities__Arm: ""
+      Ha__Entities__Disarm: ""
+      Ha__Entities__Arm_Home: ""
+      Admin__UserName: "NotAdmin"
+      Admin__Password: "SuperStr0ngP@ssw0rd" #Password require minimum: one symbol(to use '$' enter $$) one upper case char, one lower case char and a number with a total of 8 char minimum
+      Admin__Email: "your@email.com"
+      Security__AllowedIpRange: 10.0.1.2-10.0.1.255
+    restart: always
+    depends_on: 
+      - hass-alarm-mysql
+    networks:
+      - hass-alarm-net
+    build:
+      context: .
+      dockerfile: Hass-Alarm/Dockerfile
+networks:
+  hass-alarm-net:
+    driver: bridge
