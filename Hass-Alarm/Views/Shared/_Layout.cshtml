@@ -1,4 +1,5 @@
-﻿<!DOCTYPE html>
+﻿@addTagHelper *, Hass-Alarm
+<!DOCTYPE html>
 <html lang="en">
 <head>
     <meta charset="utf-8" />
@@ -32,8 +33,19 @@
                         <li class="nav-item">
                             <a class="nav-link text-dark" asp-area="" asp-controller="Home" asp-action="Panel">Panel</a>
                         </li>
-                        <li class="nav-item">
-                            <a class="nav-link text-dark" asp-area="" asp-controller="Admin" asp-action="Index">Admin</a>
+
+                        <li class="nav-item" asp-authorize asp-roles="Manager,Admin">
+                            <a class="nav-link text-dark" asp-area="Admin" asp-controller="Actions" asp-action="Index">Actions</a>
+                        </li>
+                        <li class="nav-item" asp-authorize asp-roles="Manager,Admin">
+                            <a class="nav-link text-dark" asp-area="Admin" asp-controller="ActionGroups" asp-action="Index">Action Groups</a>
+                        </li>
+                        <li class="nav-item" asp-authorize asp-roles="Manager,Admin">
+                            <a class="nav-link text-dark" asp-area="Admin" asp-controller="PinCodes" asp-action="Index">Pin Codes</a>
+                        </li>
+
+                        <li class="nav-item" asp-authorize asp-roles="Admin">
+                            <a class="nav-link text-dark" asp-area="Admin" asp-controller="Users" asp-action="Index">Users</a>
                         </li>
                     </ul>
                 </div>

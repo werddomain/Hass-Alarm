@@ -12,6 +12,7 @@ using Hass_Alarm.Data;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
+using HADotNet.Core;
 
 namespace Hass_Alarm
 {
@@ -61,13 +62,16 @@ namespace Hass_Alarm
             
             app.UseEndpoints(endpoints =>
             {
-                endpoints.MapAreaControllerRoute(name: "AdminRoute",
-                    areaName: "Admin",
-                    pattern: "{area:exists}/{controller=Default}/{action=Index}/{id?}"
-                    );
+                
                 endpoints.MapControllerRoute(
                     name: "default",
                     pattern: "{controller=Home}/{action=Index}/{id?}");
+
+                endpoints.MapAreaControllerRoute(
+                    name: "AdminRoute",
+                    areaName: "Admin",
+                    pattern: "{area:exists}/{controller=Default}/{action=Index}/{id?}"
+                    );
                 endpoints.MapRazorPages();
             });
 

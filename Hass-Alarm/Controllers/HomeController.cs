@@ -10,6 +10,7 @@ using Microsoft.Extensions.Configuration;
 using HADotNet.Core.Clients;
 using Hass_Alarm.Views.Home;
 using HADotNet.Core;
+using System.Net;
 
 namespace Hass_Alarm.Controllers
 {
@@ -42,8 +43,14 @@ namespace Hass_Alarm.Controllers
             return View();
         }
 
-        public async Task<IActionResult> PanelAsync()
+        public async Task<IActionResult> Panel()
         {
+            var haHost = _configuration.GetValue<string>("Ha:Host");
+            var haApi = _configuration.GetValue<string>("Ha:ApiKey");
+            ClientFactory.Initialize(haHost, haApi);
+            WebClient client = new WebClient();
+            string reply = client.DownloadString("https://google.ca");
+
             var model = new PanelModel();
             var statesClient = ClientFactory.GetClient<StatesClient>();
             var armT = statesClient.GetState(Entity_Arm);

@@ -1,0 +1,103 @@
+﻿@using Microsoft.AspNetCore.Identity
+@using Microsoft.Extensions.Configuration
+
+@model IdentityUser[]
+@inject UserManager<IdentityUser> _userManager
+@inject IConfiguration configuration;
+@{
+    ViewData["Title"] = "Users";
+    var poweruser = new IdentityUser
+    {
+
+        UserName = configuration["Admin:UserName"],
+        Email = configuration["Admin:Email"],
+    };
+    var isPowerUser = new Func<IdentityUser, bool>((user) =>
+    {
+        return user.Email.ToLower() == poweruser.Email.ToLower() || user.UserName.ToLower() == poweruser.UserName.ToLower();
+    });
+}
+
+<h1>Users</h1>
+
+<table class="table">
+    <thead>
+        <tr>
+            <th>
+                UserName
+            </th>
+            <th>
+                Email
+            </th>
+            <th>
+                Admin
+            </th>
+            <th>
+                Manager
+            </th>
+            <th>
+                Member
+            </th>
+            <th></th>
+        </tr>
+    </thead>
+    <tbody>
+        @foreach (var item in Model)
+        {
+            var admin = await _userManager.IsInRoleAsync(item, "Admin");
+            var manager = await _userManager.IsInRoleAsync(item, "Manager");
+            var member = await _userManager.IsInRoleAsync(item, "Member");
+            <tr>
+                <td>
+                    @Html.DisplayFor(modelItem => item.UserName)
+                </td>
+                <td>
+                    @Html.DisplayFor(modelItem => item.Email)
+                </td>
+                <td>
+                    @if (admin)
+                    {
+                        <input type="checkbox" checked />
+                    }
+                    else
+                    {
+                        <input type="checkbox" />
+                    }
+                </td>
+                <td>
+                    @if (manager)
+                    {
+                        <input type="checkbox" checked />
+                    }
+                    else
+                    {
+                        <input type="checkbox" />
+                    }
+                </td>
+                <td>
+                    @if (member)
+                    {
+                        <input type="checkbox" checked />
+                    }
+                    else
+                    {
+                        <input type="checkbox" />
+                    }
+                </td>
+                <td>
+                    @if (!isPowerUser(item))
+                    {
+                        <span>
+                            <a asp-action="Edit" asp-route-id="@item.Id">Edit</a> |
+
+                            <a asp-action="Delete" asp-route-id="@item.Id">Delete</a>
+                        </span>
+                    }
+                    else { 
+                    <b>Power User</b>
+                    }
+                </td>
+            </tr>
+        }
+    </tbody>
+</table>

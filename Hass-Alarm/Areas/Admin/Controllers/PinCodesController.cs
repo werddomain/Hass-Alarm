@@ -7,10 +7,11 @@ using Microsoft.AspNetCore.Mvc.Rendering;
 using Microsoft.EntityFrameworkCore;
 using Hass_Alarm.Data;
 using Hass_Alarm.Data.Models;
+using Microsoft.AspNetCore.Authorization;
 
 namespace Hass_Alarm.Areas.Admin.Controllers
 {
-    [Area("Admin")]
+    [Area("Admin"), Authorize(Roles = "Admin,Manager")]
     public class PinCodesController : Controller
     {
         private readonly ApplicationDbContext _context;
