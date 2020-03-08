@@ -14,7 +14,8 @@ namespace Hass_Alarm.Controllers
         private readonly ApplicationDbContext _dbContext;
         private readonly UserManager<IdentityUser> _userManager;
 
-        public MyPinController(ApplicationDbContext dbContext, UserManager<IdentityUser> userManager) {
+        public MyPinController(ApplicationDbContext dbContext, UserManager<IdentityUser> userManager)
+        {
             _dbContext = dbContext;
             _userManager = userManager;
         }
@@ -25,8 +26,37 @@ namespace Hass_Alarm.Controllers
 
             return View(pin);
         }
-        public IActionResult Index(Data.Models.PinCode model) { 
-            
+        [HttpPost, ValidateAntiForgeryToken]
+        public async Task<IActionResult> Index(Data.Models.PinCode model)
+        {
+            if (ModelState.IsValid)
+            {
+                var myUserId = User.FindFirstValue(ClaimTypes.NameIdentifier);
+                var pin = _dbContext.PinCodes.FirstOrDefault(o => o.UserId == myUserId);
+                if (pin == null)
+                {
+                    var d = await _dbContext.PinCodes.AddAsync(new Data.Models.PinCode
+                    {
+                        Name = model.Name,
+                        ActionGroupId = model.ActionGroupId,
+                        Enabled = model.Enabled,
+                        Pin = model.Pin,
+                        UserId = myUserId
+                    });
+
+                }
+                else
+                {
+                    pin.Name = model.Name;
+                    pin.Pin = model.Pin;
+                    pin.Enabled = model.Enabled;
+                    pin.ActionGroupId = model.ActionGroupId;
+
+                }
+                await _dbContext.SaveChangesAsync();
+                return RedirectToAction("Index");
+            }
+            return View(model);
         }
 
     }
