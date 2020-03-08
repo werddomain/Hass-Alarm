@@ -21,6 +21,8 @@ namespace Hass_Alarm.Data.Models
         
         public bool Enabled { get; set; }
 
+        public string UserId { get; set; }
+
         public int ActionGroupId { get; set; }
         public ActionGroup ActionGroup { get; set; }
 
