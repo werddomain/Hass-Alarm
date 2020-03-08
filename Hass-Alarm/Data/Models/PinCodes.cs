@@ -23,7 +23,7 @@ namespace Hass_Alarm.Data.Models
 
         public string UserId { get; set; }
 
-        public int ActionGroupId { get; set; }
+        public int? ActionGroupId { get; set; }
         public ActionGroup ActionGroup { get; set; }
 
 

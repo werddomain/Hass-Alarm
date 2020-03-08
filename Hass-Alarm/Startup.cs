@@ -28,9 +28,12 @@ namespace Hass_Alarm
         // This method gets called by the runtime. Use this method to add services to the container.
         public void ConfigureServices(IServiceCollection services)
         {
+            var connectionString = Configuration.GetConnectionString("DefaultConnection");
             services.AddDbContext<ApplicationDbContext>(options =>
-                options.UseMySql(
-                    Configuration.GetConnectionString("DefaultConnection")));
+                options.UseMySql(connectionString , 
+                option => {
+                        option.EnableRetryOnFailure();
+                    }));
             services.AddDefaultIdentity<IdentityUser>(options => options.SignIn.RequireConfirmedAccount = false)
                 .AddRoles<IdentityRole>()
                 .AddEntityFrameworkStores<ApplicationDbContext>();
@@ -63,16 +66,16 @@ namespace Hass_Alarm
             
             app.UseEndpoints(endpoints =>
             {
-                
+                endpoints.MapControllerRoute(
+                    name: "AreaRoute",
+                    pattern: "{area:exists}/{controller=Default}/{action=Index}/{id?}"
+                    );
+
                 endpoints.MapControllerRoute(
                     name: "default",
                     pattern: "{controller=Home}/{action=Index}/{id?}");
 
-                endpoints.MapAreaControllerRoute(
-                    name: "AdminRoute",
-                    areaName: "Admin",
-                    pattern: "{area:exists}/{controller=Default}/{action=Index}/{id?}"
-                    );
+                
                 endpoints.MapRazorPages();
             });
 
@@ -115,7 +118,7 @@ namespace Hass_Alarm
             var poweruser = new IdentityUser
             {
 
-                UserName = Configuration["Admin:UserName"],
+                UserName = Configuration["Admin:Email"],
                 Email = Configuration["Admin:Email"],
             };
             //Ensure you have these values in your appsettings.json file

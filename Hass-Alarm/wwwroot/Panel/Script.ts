@@ -64,13 +64,28 @@
                 type: form_method,
                 data: form_data,
                 cache: false,
-                success: function (returnhtml) {
-                    $("#result").html(returnhtml);
+                success: (e: app.panelModel, S, R) => {
+                    var action = $('#action-field').val();
+                    if (e.code_invalid) {
+                        me.invalidCode();
+                    }
+                    else {
+                        if (action == me.actions.arm || action == me.actions.arm_home) {
+                            me.Lock()
+                        }
+                        else
+                            me.Unlock();
+                        me.displayState(e.state);
+                    }
+
                     $("#loadingimg").hide();
                 }
             });
 
         });
+    }
+    invalidCode() {
+
     }
     displayState(name) {
         var StateIcon = $('#StateIcon');

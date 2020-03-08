@@ -71,7 +71,7 @@ namespace Hass_Alarm.Migrations
                         .ValueGeneratedOnAdd()
                         .HasColumnType("int");
 
-                    b.Property<int>("ActionGroupId")
+                    b.Property<int?>("ActionGroupId")
                         .HasColumnType("int");
 
                     b.Property<bool>("Enabled")
@@ -81,8 +81,12 @@ namespace Hass_Alarm.Migrations
                         .IsRequired()
                         .HasColumnType("longtext CHARACTER SET utf8mb4");
 
-                    b.Property<int>("Pin")
-                        .HasColumnType("int");
+                    b.Property<string>("Pin")
+                        .IsRequired()
+                        .HasColumnType("longtext CHARACTER SET utf8mb4");
+
+                    b.Property<string>("UserId")
+                        .HasColumnType("longtext CHARACTER SET utf8mb4");
 
                     b.HasKey("Id");
 
@@ -300,9 +304,7 @@ namespace Hass_Alarm.Migrations
                 {
                     b.HasOne("Hass_Alarm.Data.Models.ActionGroup", "ActionGroup")
                         .WithMany()
-                        .HasForeignKey("ActionGroupId")
-                        .OnDelete(DeleteBehavior.Cascade)
-                        .IsRequired();
+                        .HasForeignKey("ActionGroupId");
                 });
 
             modelBuilder.Entity("Microsoft.AspNetCore.Identity.IdentityRoleClaim<string>", b =>

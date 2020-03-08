@@ -61,13 +61,26 @@ var Panel = /** @class */ (function () {
                 type: form_method,
                 data: form_data,
                 cache: false,
-                success: function (returnhtml) {
-                    $("#result").html(returnhtml);
+                success: function (e, S, R) {
+                    var action = $('#action-field').val();
+                    if (e.code_invalid) {
+                        me.invalidCode();
+                    }
+                    else {
+                        if (action == me.actions.arm || action == me.actions.arm_home) {
+                            me.Lock();
+                        }
+                        else
+                            me.Unlock();
+                        me.displayState(e.state);
+                    }
                     $("#loadingimg").hide();
                 }
             });
         });
     }
+    Panel.prototype.invalidCode = function () {
+    };
     Panel.prototype.displayState = function (name) {
         var StateIcon = $('#StateIcon');
         var StateText = $('#StateText');

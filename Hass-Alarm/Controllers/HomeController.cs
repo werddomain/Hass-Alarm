@@ -85,6 +85,7 @@ namespace Hass_Alarm.Controllers
                 else
                     model.code_invalid = true;
             }
+            return Json(model);
         }
 
         [ResponseCache(Duration = 0, Location = ResponseCacheLocation.None, NoStore = true)]
