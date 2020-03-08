@@ -8,6 +8,7 @@ namespace Hass_Alarm.Views.Home
 {
     public class PanelModel
     {
+        public ArmState ArmState { get; set; }
         public string State { get; set; }
 
         [Required]

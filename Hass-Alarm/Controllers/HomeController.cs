@@ -11,6 +11,7 @@ using HADotNet.Core.Clients;
 using Hass_Alarm.Views.Home;
 using HADotNet.Core;
 using System.Net;
+using Hass_Alarm.Data;
 
 namespace Hass_Alarm.Controllers
 {
@@ -18,19 +19,18 @@ namespace Hass_Alarm.Controllers
     {
         private readonly ILogger<HomeController> _logger;
         private readonly IConfiguration _configuration;
-
+        private readonly ApplicationDbContext _dbContext;
+        private readonly IAlarmState _alarmState;
         string Entity_Arm = "";
-        string Entity_Disarm = "";
         string Entity_ArmHome = "";
 
-        public HomeController(ILogger<HomeController> logger, IConfiguration configuration)
+        public HomeController(ILogger<HomeController> logger, IConfiguration configuration, Data.ApplicationDbContext dbContext, IAlarmState alarmState)
         {
             _logger = logger;
             _configuration = configuration;
+            _dbContext = dbContext;
+            _alarmState = alarmState;
 
-            Entity_Arm = configuration.GetValue<string>("Ha:Entities:Arm");
-            Entity_Disarm = configuration.GetValue<string>("Ha:Entities:Disarm");
-            Entity_ArmHome = configuration.GetValue<string>("Ha:Entities:ArmHome");
         }
 
         public IActionResult Index()
@@ -40,47 +40,51 @@ namespace Hass_Alarm.Controllers
 
         public IActionResult Privacy()
         {
+            var model = new PanelModel();
+
             return View();
         }
 
+        [ResponseCache(Duration = 0, Location = ResponseCacheLocation.None, NoStore = true)]
         public async Task<IActionResult> Panel()
         {
-            var haHost = _configuration.GetValue<string>("Ha:Host");
-            var haApi = _configuration.GetValue<string>("Ha:ApiKey");
-            ClientFactory.Initialize(haHost, haApi);
-            WebClient client = new WebClient();
-            string reply = client.DownloadString("https://google.ca");
-
             var model = new PanelModel();
-            var statesClient = ClientFactory.GetClient<StatesClient>();
-            var armT = statesClient.GetState(Entity_Arm);
-            var servicesClient = ClientFactory.GetClient<ServiceClient>();
-          
-            //var disarmT = statesClient.GetState(Entity_Disarm);
-            var armHomeT = !string.IsNullOrEmpty(Entity_ArmHome) ? statesClient.GetState(Entity_ArmHome) : null;
+            model.ArmState = await _alarmState.GetArmState();
+            model.State = model.ArmState.ToString().ToLower();
 
-            if (armHomeT != null)
-                await Task.WhenAll(armT, armHomeT);
-            else
-                await armT;
-            bool arm = false;
-            bool arm_home = false;
-            if (armT?.Result?.State?.ToLower() == "on")
-            {
-                arm = true;
-            }
-            if (armHomeT != null && armHomeT?.Result?.State?.ToLower() == "on")
-            {
-                arm_home = true;
-            }
-            model.State = (arm, arm_home) switch
-            {
-                (true, false) => "arm",
-                (false, true) => "arm_home",
-                (true, true) => "arm",
-                (false, false) => "disarm"
-            };
             return View(model);
+        }
+
+        [ValidateAntiForgeryToken, HttpPost]
+        [ResponseCache(Duration = 0, Location = ResponseCacheLocation.None, NoStore = true)]
+        public async Task<IActionResult> Panel(PanelModel model)
+        {
+
+            if (!string.IsNullOrEmpty(model.code))
+            {
+                var pin = _dbContext.PinCodes.Where(o => o.Pin.ToString() == model.code);
+                if (pin.Any())
+                {
+                    model.code_invalid = false;
+                    
+                    switch (model.action)
+                    {
+                        case "arm":
+                            break;
+                        case "disarm":
+                            break;
+                        case "arm_home":
+                            break;
+                        case "unlock":
+                            break;
+
+                        default:
+                            break;
+                    }
+                }
+                else
+                    model.code_invalid = true;
+            }
         }
 
         [ResponseCache(Duration = 0, Location = ResponseCacheLocation.None, NoStore = true)]

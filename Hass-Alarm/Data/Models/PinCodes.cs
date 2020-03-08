@@ -14,7 +14,7 @@ namespace Hass_Alarm.Data.Models
         public int Id { get; set; }
         
         [Required]
-        public int Pin { get; set; }
+        public string Pin { get; set; }
         
         [Required]
         public string Name { get; set; }
