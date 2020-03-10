@@ -18,27 +18,36 @@ namespace Hass_Alarm
 {
     public class Startup
     {
-        public Startup(IConfiguration configuration)
+        public Startup(IConfiguration configuration, IWebHostEnvironment env)
         {
             Configuration = configuration;
+            Env = env;
         }
 
         public IConfiguration Configuration { get; }
+        public IWebHostEnvironment Env { get; }
 
         // This method gets called by the runtime. Use this method to add services to the container.
         public void ConfigureServices(IServiceCollection services)
         {
             var connectionString = Configuration.GetConnectionString("DefaultConnection");
             services.AddDbContext<ApplicationDbContext>(options =>
-                options.UseMySql(connectionString , 
-                option => {
-                        option.EnableRetryOnFailure();
-                    }));
+                options.UseMySql(connectionString,
+                option =>
+                {
+                    option.EnableRetryOnFailure();
+                }));
             services.AddDefaultIdentity<IdentityUser>(options => options.SignIn.RequireConfirmedAccount = false)
                 .AddRoles<IdentityRole>()
                 .AddEntityFrameworkStores<ApplicationDbContext>();
             services.AddControllersWithViews();
-            services.AddRazorPages();
+            var builder = services.AddRazorPages();
+#if DEBUG
+            if (Env.IsDevelopment())
+            {
+                builder.AddRazorRuntimeCompilation();
+            }
+#endif
             services.AddSingleton<IAlarmState, AlarmState>();
         }
 
@@ -63,7 +72,7 @@ namespace Hass_Alarm
 
             app.UseAuthentication();
             app.UseAuthorization();
-            
+
             app.UseEndpoints(endpoints =>
             {
                 endpoints.MapControllerRoute(
@@ -75,7 +84,7 @@ namespace Hass_Alarm
                     name: "default",
                     pattern: "{controller=Home}/{action=Index}/{id?}");
 
-                
+
                 endpoints.MapRazorPages();
             });
 

@@ -1,11 +1,20 @@
 ﻿class Panel {
-    pin: string;
-    numbers: JQuery<HTMLElement>;
+    _pin: string;
+    private get pin(): string { return this._pin;}
+    private set pin(value: string) {
+        this._pin = value;
+        this.display.val(this._pin);
+        $('#pin-code').val(this._pin);
 
+    }
+    numbers: JQuery<HTMLElement>;
+    display: JQuery;
     constructor() {
+        this.display = $('#code');
         var me = this;
         this.pin = "";
         this.numbers = $('#numberInputs .numberinput');
+        
         $('.btn-lock').click(() => { this.Lock(); });
         $('.cmdButton').click(function () {
             var actionName = $(this).data('state');
@@ -47,8 +56,19 @@
 
             $('#pin-code').val(this.pin);
         });
-
-        this.displayState($('#startup-state').val());
+        $('#num-panel .num').click((e) => {
+            var num = $(e.target);
+            this.pin = this.pin + num.text();
+            
+        });
+        $('#num-panel .back').click((e) => {
+            
+            this.pin = this.pin.slice(0, -1);
+        });
+        $('#num-panel .go').click((e) => {
+            this.action("unlock");
+        });
+        
         $("form[ajax=true]").submit(function (e) {
 
             e.preventDefault();
@@ -70,6 +90,7 @@
                         me.invalidCode();
                     }
                     else {
+                        $('#msg-invalid-code').addClass('.hidden');
                         if (action == me.actions.arm || action == me.actions.arm_home) {
                             me.Lock()
                         }
@@ -83,33 +104,37 @@
             });
 
         });
+        this.displayState($('#msg-state').data("state"));
     }
-    invalidCode() {
+    bindEvents() {
 
     }
+    invalidCode() {
+        $('#msg-invalid-code').removeClass('hidden');
+    }
     displayState(name) {
-        var StateIcon = $('#StateIcon');
-        var StateText = $('#StateText');
-        var StateColor = $('#StateColor');
+        var StateIcon = $('#msg-state i');
+        var StateText = $('#msg-state span');
+        var StateColor = $('#msg-state');
 
         if (name != this.actions.unlock) {
             switch (name) {
                 case this.actions.arm:
                     StateIcon.attr('class', 'mdi mdi-bell-alert');
-                    StateText.text('Armé');
-                    StateColor.attr('class', "text-danger");
+                    StateText.text('Armed');
+                    StateColor.attr('class', "alert alert-danger");
                     break;
 
                 case this.actions.arm_home:
                     StateIcon.attr('class', 'mdi mdi-bell-circle');
-                    StateText.text('Armé à la maison');
-                    StateColor.attr('class', "text-warning");
+                    StateText.text('Armed at home');
+                    StateColor.attr('class', "alert alert-warning");
                     break;
 
                 case this.actions.disarm:
                     StateIcon.attr('class', 'mdi mdi-bell-off');
-                    StateText.text('Désarmé');
-                    StateColor.attr('class', "text-success");
+                    StateText.text('Disarmed');
+                    StateColor.attr('class', "alert alert-success");
                     break;
                 default:
                     break;

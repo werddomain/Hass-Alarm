@@ -62,7 +62,7 @@ namespace Hass_Alarm.Controllers
 
             if (!string.IsNullOrEmpty(model.code))
             {
-                var pin = _dbContext.PinCodes.Where(o => o.Pin.ToString() == model.code);
+                var pin = _dbContext.PinCodes.Where(o => o.Pin == model.code);
                 if (pin.Any())
                 {
                     model.code_invalid = false;

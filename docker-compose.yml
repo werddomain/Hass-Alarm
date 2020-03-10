@@ -24,7 +24,6 @@ services:
 
       #Ha__Entities__Arm: "input_boolean.alarm_arm"
       #Ha__Entities__ArmHome: "input_boolean.alarm_home" #optional
-      Admin__UserName: "NotAdmin"
       Admin__Password: "SuperStr0ngP@ssw0rd" #Password require minimum: one symbol(to use '$' enter $$) one upper case char, one lower case char and a number with a total of 8 char minimum
       Admin__Email: "your_user@email.com"
       Security__AllowedIpRange: 10.0.1.2-10.0.1.255

@@ -59,7 +59,7 @@
 
 @import url(https://fonts.googleapis.com/css?family=Open+Sans:300);
 
-html, body {
+/*html, body {
     margin: 0;
     padding: 0;
     background-color: #000000;
@@ -210,7 +210,17 @@ html, body {
         bottom: 63% !important;
     }
 }
-
+*/
 .hidden {
     display: none;
+}
+#code {
+font-size:35px;
+height:55px;
+}
+.w-33 {
+width:33%;
+}
+#num-panel button {
+    height:55px;
 }
