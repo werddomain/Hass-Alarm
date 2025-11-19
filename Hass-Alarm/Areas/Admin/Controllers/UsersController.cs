@@ -84,10 +84,22 @@ namespace Hass_Alarm.Areas.Admin.Controllers
             return View(viewModels);
         }
 
-        public async Task<IActionResult> EditAsync(string id) {
+        public async Task<IActionResult> EditAsync(string id)
+        {
+            // MEDIUM FIX: Validate parameter
+            if (string.IsNullOrWhiteSpace(id))
+            {
+                _logger.LogWarning("EditAsync called with null or empty id");
+                return BadRequest();
+            }
+
             var user = await _userManager.FindByIdAsync(id);
             if (user == null)
+            {
+                _logger.LogWarning("Attempt to edit non-existent user with ID: {UserId}", id);
                 return NotFound();
+            }
+
             ViewData["User"] = user;
             var model = new EditUserModel();
             model.UserId = id;
@@ -153,11 +165,19 @@ namespace Hass_Alarm.Areas.Admin.Controllers
                 }
             }
 
+            TempData["Success"] = $"User {user.UserName} roles updated successfully.";
             return RedirectToAction("Index");
         }
 
         public async Task<IActionResult> DeleteAsync(string id)
         {
+            // MEDIUM FIX: Validate parameter
+            if (string.IsNullOrWhiteSpace(id))
+            {
+                _logger.LogWarning("DeleteAsync called with null or empty id");
+                return BadRequest();
+            }
+
             var user = await _userManager.FindByIdAsync(id);
             if (user == null)
             {
@@ -177,6 +197,13 @@ namespace Hass_Alarm.Areas.Admin.Controllers
         [ValidateAntiForgeryToken, HttpPost]
         public async Task<IActionResult> ConfirmDeleteAsync(string id)
         {
+            // MEDIUM FIX: Validate parameter
+            if (string.IsNullOrWhiteSpace(id))
+            {
+                _logger.LogWarning("ConfirmDeleteAsync called with null or empty id");
+                return BadRequest();
+            }
+
             var user = await _userManager.FindByIdAsync(id);
             if (user == null)
             {
@@ -187,11 +214,14 @@ namespace Hass_Alarm.Areas.Admin.Controllers
             if (IsPowerUser(user))
             {
                 _logger.LogWarning("Attempt to confirm delete for power user {UserName}", user.UserName);
+                TempData["Error"] = "Cannot delete power user.";
                 return RedirectToAction("Index");
             }
 
+            var userName = user.UserName;
             await _userManager.DeleteAsync(user);
-            _logger.LogInformation("Deleted user {UserName} (ID: {UserId})", user.UserName, user.Id);
+            _logger.LogInformation("Deleted user {UserName} (ID: {UserId})", userName, id);
+            TempData["Success"] = $"User {userName} deleted successfully.";
             return RedirectToAction("Index");
         }
 
@@ -199,6 +229,13 @@ namespace Hass_Alarm.Areas.Admin.Controllers
         [ValidateAntiForgeryToken]
         public async Task<IActionResult> ToggleUserLock(string id)
         {
+            // MEDIUM FIX: Validate parameter
+            if (string.IsNullOrWhiteSpace(id))
+            {
+                _logger.LogWarning("ToggleUserLock called with null or empty id");
+                return BadRequest();
+            }
+
             var user = await _userManager.FindByIdAsync(id);
             if (user == null)
             {
@@ -209,6 +246,7 @@ namespace Hass_Alarm.Areas.Admin.Controllers
             if (IsPowerUser(user))
             {
                 _logger.LogWarning("Attempt to toggle lock for power user {UserName}", user.UserName);
+                TempData["Error"] = "Cannot lock/unlock power user.";
                 return RedirectToAction("Index");
             }
 
@@ -219,6 +257,7 @@ namespace Hass_Alarm.Areas.Admin.Controllers
                 // Unlock the user
                 await _userManager.SetLockoutEndDateAsync(user, null);
                 _logger.LogInformation("Unlocked user {UserName} (ID: {UserId})", user.UserName, user.Id);
+                TempData["Success"] = $"User {user.UserName} unlocked successfully.";
             }
             else
             {
@@ -226,6 +265,7 @@ namespace Hass_Alarm.Areas.Admin.Controllers
                 await _userManager.SetLockoutEnabledAsync(user, true);
                 await _userManager.SetLockoutEndDateAsync(user, DateTimeOffset.MaxValue);
                 _logger.LogInformation("Locked user {UserName} (ID: {UserId})", user.UserName, user.Id);
+                TempData["Success"] = $"User {user.UserName} locked successfully.";
             }
 
             return RedirectToAction("Index");
@@ -235,11 +275,19 @@ namespace Hass_Alarm.Areas.Admin.Controllers
         [ValidateAntiForgeryToken]
         public async Task<IActionResult> TogglePinEnabled(string userId)
         {
+            // MEDIUM FIX: Validate parameter
+            if (string.IsNullOrWhiteSpace(userId))
+            {
+                _logger.LogWarning("TogglePinEnabled called with null or empty userId");
+                return BadRequest();
+            }
+
             var pinCode = await _context.PinCodes.FirstOrDefaultAsync(p => p.UserId == userId);
 
             if (pinCode == null)
             {
                 _logger.LogWarning("Attempt to toggle PIN for user with no PIN code. UserId: {UserId}", userId);
+                TempData["Error"] = "User does not have a PIN code.";
                 return NotFound();
             }
 
@@ -249,11 +297,19 @@ namespace Hass_Alarm.Areas.Admin.Controllers
             _logger.LogInformation("Toggled PIN {PinName} to {Status} for user {UserId}",
                 pinCode.Name, pinCode.Enabled ? "Enabled" : "Disabled", userId);
 
+            TempData["Success"] = $"PIN {pinCode.Name} {(pinCode.Enabled ? "enabled" : "disabled")} successfully.";
             return RedirectToAction("Index");
         }
 
         public async Task<IActionResult> CreatePin(string userId)
         {
+            // MEDIUM FIX: Validate parameter
+            if (string.IsNullOrWhiteSpace(userId))
+            {
+                _logger.LogWarning("CreatePin called with null or empty userId");
+                return BadRequest();
+            }
+
             var user = await _userManager.FindByIdAsync(userId);
             if (user == null)
             {
@@ -265,6 +321,7 @@ namespace Hass_Alarm.Areas.Admin.Controllers
             if (existingPin != null)
             {
                 _logger.LogWarning("Attempt to create duplicate PIN for user {UserName} who already has PIN", user.UserName);
+                TempData["Error"] = "This user already has a PIN code.";
                 return RedirectToAction("Index");
             }
 
@@ -308,6 +365,7 @@ namespace Hass_Alarm.Areas.Admin.Controllers
                 _context.Add(pinCode);
                 await _context.SaveChangesAsync();
                 _logger.LogInformation("Created PIN {PinName} for user {UserId}", pinCode.Name, pinCode.UserId);
+                TempData["Success"] = $"PIN {pinCode.Name} created successfully.";
                 return RedirectToAction("Index");
             }
 

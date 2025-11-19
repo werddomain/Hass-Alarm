@@ -12,6 +12,7 @@ using Hass_Alarm.Views.Home;
 using HADotNet.Core;
 using System.Net;
 using Hass_Alarm.Data;
+using Microsoft.EntityFrameworkCore;
 
 namespace Hass_Alarm.Controllers
 {
@@ -21,8 +22,6 @@ namespace Hass_Alarm.Controllers
         private readonly IConfiguration _configuration;
         private readonly ApplicationDbContext _dbContext;
         private readonly IAlarmState _alarmState;
-        string Entity_Arm = "";
-        string Entity_ArmHome = "";
 
         public HomeController(ILogger<HomeController> logger, IConfiguration configuration, Data.ApplicationDbContext dbContext, IAlarmState alarmState)
         {
@@ -30,7 +29,6 @@ namespace Hass_Alarm.Controllers
             _configuration = configuration;
             _dbContext = dbContext;
             _alarmState = alarmState;
-
         }
 
         public IActionResult Index()
@@ -59,32 +57,64 @@ namespace Hass_Alarm.Controllers
         [ResponseCache(Duration = 0, Location = ResponseCacheLocation.None, NoStore = true)]
         public async Task<IActionResult> Panel(PanelModel model)
         {
-
             if (!string.IsNullOrEmpty(model.code))
             {
-                var pin = _dbContext.PinCodes.Where(o => o.Pin == model.code);
-                if (pin.Any())
+                // CRITICAL FIX: Use async query and check if PIN is enabled
+                var pin = await _dbContext.PinCodes
+                    .Where(o => o.Pin == model.code && o.Enabled)
+                    .FirstOrDefaultAsync();
+
+                if (pin != null)
                 {
                     model.code_invalid = false;
-                    
-                    switch (model.action)
-                    {
-                        case "arm":
-                            break;
-                        case "disarm":
-                            break;
-                        case "arm_home":
-                            break;
-                        case "unlock":
-                            break;
+                    _logger.LogInformation("Valid PIN entered: {PinName}", pin.Name);
 
-                        default:
-                            break;
+                    try
+                    {
+                        switch (model.action)
+                        {
+                            case "arm":
+                                await _alarmState.SetArmState(AlarmState.Armed);
+                                _logger.LogInformation("Alarm armed by PIN: {PinName}", pin.Name);
+                                break;
+
+                            case "disarm":
+                                await _alarmState.SetArmState(AlarmState.Disarmed);
+                                _logger.LogInformation("Alarm disarmed by PIN: {PinName}", pin.Name);
+                                break;
+
+                            case "arm_home":
+                                await _alarmState.SetArmState(AlarmState.ArmedHome);
+                                _logger.LogInformation("Alarm armed (home) by PIN: {PinName}", pin.Name);
+                                break;
+
+                            case "unlock":
+                                // Unlock action - could be used for other purposes
+                                _logger.LogInformation("Unlock requested by PIN: {PinName}", pin.Name);
+                                break;
+
+                            default:
+                                _logger.LogWarning("Unknown action requested: {Action}", model.action);
+                                break;
+                        }
+
+                        // Refresh the alarm state after action
+                        model.ArmState = await _alarmState.GetArmState();
+                        model.State = model.ArmState.ToString().ToLower();
+                    }
+                    catch (Exception ex)
+                    {
+                        _logger.LogError(ex, "Error executing alarm action {Action}", model.action);
+                        model.code_invalid = true;
                     }
                 }
                 else
+                {
                     model.code_invalid = true;
+                    _logger.LogWarning("Invalid or disabled PIN attempted: {Code}", model.code);
+                }
             }
+
             return Json(model);
         }
 
