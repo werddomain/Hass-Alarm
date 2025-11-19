@@ -9,6 +9,7 @@ using Microsoft.AspNetCore.Identity;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Configuration;
+using Microsoft.Extensions.Logging;
 
 namespace Hass_Alarm.Areas.Admin.Controllers
 {
@@ -20,29 +21,53 @@ namespace Hass_Alarm.Areas.Admin.Controllers
         private readonly RoleManager<IdentityRole> _roleManager;
         private readonly IConfiguration _configuration;
         private readonly ApplicationDbContext _context;
+        private readonly ILogger<UsersController> _logger;
 
-        public UsersController(UserManager<IdentityUser> userManager, RoleManager<IdentityRole> roleManager, IConfiguration configuration, ApplicationDbContext context) {
+        public UsersController(
+            UserManager<IdentityUser> userManager,
+            RoleManager<IdentityRole> roleManager,
+            IConfiguration configuration,
+            ApplicationDbContext context,
+            ILogger<UsersController> logger)
+        {
             _userManager = userManager;
             _roleManager = roleManager;
             _configuration = configuration;
             _context = context;
+            _logger = logger;
+        }
+
+        private bool IsPowerUser(IdentityUser user)
+        {
+            var powerUserEmail = _configuration["Admin:Email"];
+            var powerUserName = _configuration["Admin:UserName"];
+
+            return (user.Email != null && powerUserEmail != null && user.Email.Equals(powerUserEmail, StringComparison.OrdinalIgnoreCase)) ||
+                   (user.UserName != null && powerUserName != null && user.UserName.Equals(powerUserName, StringComparison.OrdinalIgnoreCase));
         }
         public async Task<IActionResult> Index()
         {
-            var users = _userManager.Users.ToList();
-            var powerUserEmail = _configuration["Admin:Email"];
-            var powerUserName = _configuration["Admin:UserName"];
+            // Load all users asynchronously
+            var users = await _userManager.Users.ToListAsync();
+
+            // Load all PIN codes in one query to avoid N+1 problem
+            var userIds = users.Select(u => u.Id).ToList();
+            var pinCodes = await _context.PinCodes
+                .Where(p => userIds.Contains(p.UserId))
+                .ToListAsync();
+            var pinCodesByUserId = pinCodes.ToDictionary(p => p.UserId);
 
             var viewModels = new List<UserManagementViewModel>();
 
             foreach (var user in users)
             {
-                var pinCode = await _context.PinCodes.FirstOrDefaultAsync(p => p.UserId == user.Id);
+                // Get PIN code from dictionary (no database query)
+                pinCodesByUserId.TryGetValue(user.Id, out var pinCode);
+
+                // Get roles
                 var isAdmin = await _userManager.IsInRoleAsync(user, "Admin");
                 var isManager = await _userManager.IsInRoleAsync(user, "Manager");
                 var isMember = await _userManager.IsInRoleAsync(user, "Member");
-                var isPowerUser = user.Email?.ToLower() == powerUserEmail?.ToLower() ||
-                                  user.UserName?.ToLower() == powerUserName?.ToLower();
 
                 viewModels.Add(new UserManagementViewModel
                 {
@@ -52,7 +77,7 @@ namespace Hass_Alarm.Areas.Admin.Controllers
                     IsManager = isManager,
                     IsMember = isMember,
                     IsLocked = user.LockoutEnd.HasValue && user.LockoutEnd.Value > DateTimeOffset.UtcNow,
-                    IsPowerUser = isPowerUser
+                    IsPowerUser = IsPowerUser(user)
                 });
             }
 
@@ -73,29 +98,61 @@ namespace Hass_Alarm.Areas.Admin.Controllers
         }
 
         [ValidateAntiForgeryToken, HttpPost]
-        public async Task<IActionResult> EditAsync(EditUserModel model) {
+        public async Task<IActionResult> EditAsync(EditUserModel model)
+        {
             var user = await _userManager.FindByIdAsync(model.UserId);
+            if (user == null)
+            {
+                _logger.LogWarning("Attempt to edit non-existent user with ID: {UserId}", model.UserId);
+                return NotFound();
+            }
+
             var admin = await _userManager.IsInRoleAsync(user, "Admin");
             var manager = await _userManager.IsInRoleAsync(user, "Manager");
             var member = await _userManager.IsInRoleAsync(user, "Member");
-            if (model.Admin != admin) {
+
+            if (model.Admin != admin)
+            {
                 if (model.Admin)
+                {
                     await _userManager.AddToRoleAsync(user, "Admin");
+                    _logger.LogInformation("Added Admin role to user {UserName}", user.UserName);
+                }
                 else
+                {
                     await _userManager.RemoveFromRoleAsync(user, "Admin");
+                    _logger.LogInformation("Removed Admin role from user {UserName}", user.UserName);
+                }
             }
-            if (model.Manager != manager) {
+
+            if (model.Manager != manager)
+            {
                 if (model.Manager)
+                {
                     await _userManager.AddToRoleAsync(user, "Manager");
+                    _logger.LogInformation("Added Manager role to user {UserName}", user.UserName);
+                }
                 else
+                {
                     await _userManager.RemoveFromRoleAsync(user, "Manager");
+                    _logger.LogInformation("Removed Manager role from user {UserName}", user.UserName);
+                }
             }
-            if (model.Member != member) {
+
+            if (model.Member != member)
+            {
                 if (model.Member)
+                {
                     await _userManager.AddToRoleAsync(user, "Member");
+                    _logger.LogInformation("Added Member role to user {UserName}", user.UserName);
+                }
                 else
+                {
                     await _userManager.RemoveFromRoleAsync(user, "Member");
+                    _logger.LogInformation("Removed Member role from user {UserName}", user.UserName);
+                }
             }
+
             return RedirectToAction("Index");
         }
 
@@ -103,18 +160,17 @@ namespace Hass_Alarm.Areas.Admin.Controllers
         {
             var user = await _userManager.FindByIdAsync(id);
             if (user == null)
+            {
+                _logger.LogWarning("Attempt to delete non-existent user with ID: {UserId}", id);
                 return NotFound();
-            var poweruser = new IdentityUser
-            {
+            }
 
-                UserName = _configuration["Admin:UserName"],
-                Email = _configuration["Admin:Email"],
-            };
-            if (user.Email.ToLower() == poweruser.Email.ToLower() || user.UserName.ToLower() == poweruser.UserName.ToLower())
+            if (IsPowerUser(user))
             {
+                _logger.LogWarning("Attempt to delete power user {UserName}", user.UserName);
                 return RedirectToAction("Index");
             }
-            
+
             return View(user);
         }
 
@@ -123,18 +179,19 @@ namespace Hass_Alarm.Areas.Admin.Controllers
         {
             var user = await _userManager.FindByIdAsync(id);
             if (user == null)
+            {
+                _logger.LogWarning("Attempt to confirm delete for non-existent user with ID: {UserId}", id);
                 return NotFound();
-            var poweruser = new IdentityUser
-            {
+            }
 
-                UserName = _configuration["Admin:UserName"],
-                Email = _configuration["Admin:Email"],
-            };
-            if (user.Email.ToLower() == poweruser.Email.ToLower() || user.UserName.ToLower() == poweruser.UserName.ToLower())
+            if (IsPowerUser(user))
             {
+                _logger.LogWarning("Attempt to confirm delete for power user {UserName}", user.UserName);
                 return RedirectToAction("Index");
             }
+
             await _userManager.DeleteAsync(user);
+            _logger.LogInformation("Deleted user {UserName} (ID: {UserId})", user.UserName, user.Id);
             return RedirectToAction("Index");
         }
 
@@ -144,15 +201,14 @@ namespace Hass_Alarm.Areas.Admin.Controllers
         {
             var user = await _userManager.FindByIdAsync(id);
             if (user == null)
-                return NotFound();
-
-            var powerUserEmail = _configuration["Admin:Email"];
-            var powerUserName = _configuration["Admin:UserName"];
-            var isPowerUser = user.Email?.ToLower() == powerUserEmail?.ToLower() ||
-                              user.UserName?.ToLower() == powerUserName?.ToLower();
-
-            if (isPowerUser)
             {
+                _logger.LogWarning("Attempt to toggle lock for non-existent user with ID: {UserId}", id);
+                return NotFound();
+            }
+
+            if (IsPowerUser(user))
+            {
+                _logger.LogWarning("Attempt to toggle lock for power user {UserName}", user.UserName);
                 return RedirectToAction("Index");
             }
 
@@ -162,11 +218,14 @@ namespace Hass_Alarm.Areas.Admin.Controllers
             {
                 // Unlock the user
                 await _userManager.SetLockoutEndDateAsync(user, null);
+                _logger.LogInformation("Unlocked user {UserName} (ID: {UserId})", user.UserName, user.Id);
             }
             else
             {
-                // Lock the user indefinitely
+                // Enable lockout and lock the user indefinitely
+                await _userManager.SetLockoutEnabledAsync(user, true);
                 await _userManager.SetLockoutEndDateAsync(user, DateTimeOffset.MaxValue);
+                _logger.LogInformation("Locked user {UserName} (ID: {UserId})", user.UserName, user.Id);
             }
 
             return RedirectToAction("Index");
@@ -180,24 +239,32 @@ namespace Hass_Alarm.Areas.Admin.Controllers
 
             if (pinCode == null)
             {
+                _logger.LogWarning("Attempt to toggle PIN for user with no PIN code. UserId: {UserId}", userId);
                 return NotFound();
             }
 
             pinCode.Enabled = !pinCode.Enabled;
             await _context.SaveChangesAsync();
 
+            _logger.LogInformation("Toggled PIN {PinName} to {Status} for user {UserId}",
+                pinCode.Name, pinCode.Enabled ? "Enabled" : "Disabled", userId);
+
             return RedirectToAction("Index");
         }
 
-        public IActionResult CreatePin(string userId)
+        public async Task<IActionResult> CreatePin(string userId)
         {
-            var user = _userManager.FindByIdAsync(userId).Result;
+            var user = await _userManager.FindByIdAsync(userId);
             if (user == null)
+            {
+                _logger.LogWarning("Attempt to create PIN for non-existent user with ID: {UserId}", userId);
                 return NotFound();
+            }
 
-            var existingPin = _context.PinCodes.FirstOrDefault(p => p.UserId == userId);
+            var existingPin = await _context.PinCodes.FirstOrDefaultAsync(p => p.UserId == userId);
             if (existingPin != null)
             {
+                _logger.LogWarning("Attempt to create duplicate PIN for user {UserName} who already has PIN", user.UserName);
                 return RedirectToAction("Index");
             }
 
@@ -210,14 +277,47 @@ namespace Hass_Alarm.Areas.Admin.Controllers
         [ValidateAntiForgeryToken]
         public async Task<IActionResult> CreatePin([Bind("Pin,Name,Enabled,ActionGroupId,UserId")] Data.Models.PinCode pinCode)
         {
+            // Validate PIN format
+            if (string.IsNullOrWhiteSpace(pinCode.Pin))
+            {
+                ModelState.AddModelError("Pin", "PIN code is required.");
+            }
+            else if (!System.Text.RegularExpressions.Regex.IsMatch(pinCode.Pin, @"^\d{4,8}$"))
+            {
+                ModelState.AddModelError("Pin", "PIN code must be 4-8 digits.");
+            }
+
+            // Check for duplicate PIN
+            var duplicatePin = await _context.PinCodes
+                .AnyAsync(p => p.Pin == pinCode.Pin && p.UserId != pinCode.UserId);
+            if (duplicatePin)
+            {
+                ModelState.AddModelError("Pin", "This PIN code is already in use by another user.");
+            }
+
+            // Check if user already has a PIN
+            var existingUserPin = await _context.PinCodes
+                .AnyAsync(p => p.UserId == pinCode.UserId);
+            if (existingUserPin)
+            {
+                ModelState.AddModelError("", "This user already has a PIN code.");
+            }
+
             if (ModelState.IsValid)
             {
                 _context.Add(pinCode);
                 await _context.SaveChangesAsync();
+                _logger.LogInformation("Created PIN {PinName} for user {UserId}", pinCode.Name, pinCode.UserId);
                 return RedirectToAction("Index");
             }
 
             var user = await _userManager.FindByIdAsync(pinCode.UserId);
+            if (user == null)
+            {
+                _logger.LogError("User not found when returning CreatePin view. UserId: {UserId}", pinCode.UserId);
+                return NotFound();
+            }
+
             ViewData["User"] = user;
             ViewData["ActionGroupId"] = new Microsoft.AspNetCore.Mvc.Rendering.SelectList(_context.ActionGroups, "Id", "Name", pinCode.ActionGroupId);
             return View(pinCode);
