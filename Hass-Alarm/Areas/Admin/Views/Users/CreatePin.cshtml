@@ -1,0 +1,58 @@
+@using Microsoft.AspNetCore.Identity
+@model Hass_Alarm.Data.Models.PinCode
+
+@{
+    ViewData["Title"] = "Create PIN Code";
+    var user = ViewData["User"] as IdentityUser;
+}
+
+<h1>Create PIN Code</h1>
+
+<h4>For user: <strong>@user.UserName</strong> (@user.Email)</h4>
+<hr />
+<div class="row">
+    <div class="col-md-6">
+        <form asp-action="CreatePin">
+            <div asp-validation-summary="ModelOnly" class="text-danger"></div>
+
+            <input type="hidden" asp-for="UserId" value="@user.Id" />
+
+            <div class="form-group">
+                <label asp-for="Name" class="control-label">PIN Name</label>
+                <input asp-for="Name" class="form-control" placeholder="e.g., John's PIN" />
+                <span asp-validation-for="Name" class="text-danger"></span>
+            </div>
+
+            <div class="form-group">
+                <label asp-for="Pin" class="control-label">PIN Code</label>
+                <input asp-for="Pin" class="form-control" type="text" placeholder="Enter 4-6 digit PIN" maxlength="6" pattern="[0-9]*" />
+                <small class="form-text text-muted">Enter a numeric PIN code (4-6 digits recommended)</small>
+                <span asp-validation-for="Pin" class="text-danger"></span>
+            </div>
+
+            <div class="form-group">
+                <label asp-for="ActionGroupId" class="control-label">Action Group</label>
+                <select asp-for="ActionGroupId" class="form-control" asp-items="ViewBag.ActionGroupId">
+                    <option value="">-- Select Action Group (Optional) --</option>
+                </select>
+                <small class="form-text text-muted">Optional: Select which actions this PIN will trigger</small>
+            </div>
+
+            <div class="form-group form-check">
+                <input asp-for="Enabled" class="form-check-input" type="checkbox" checked />
+                <label asp-for="Enabled" class="form-check-label">
+                    Enable PIN immediately
+                </label>
+            </div>
+
+            <div class="form-group">
+                <input type="submit" value="Create PIN" class="btn btn-primary" />
+                <a asp-action="Index" class="btn btn-secondary">Cancel</a>
+            </div>
+        </form>
+    </div>
+</div>
+
+@section Scripts {
+    @{await Html.RenderPartialAsync("_ValidationScriptsPartial");}
+}

@@ -1,103 +1,167 @@
-﻿@using Microsoft.AspNetCore.Identity
-@using Microsoft.Extensions.Configuration
+@using Hass_Alarm.Areas.Admin.Models.Users
+@model List<UserManagementViewModel>
 
-@model IdentityUser[]
-@inject UserManager<IdentityUser> _userManager
-@inject IConfiguration configuration;
 @{
-    ViewData["Title"] = "Users";
-    var poweruser = new IdentityUser
-    {
-
-        UserName = configuration["Admin:UserName"],
-        Email = configuration["Admin:Email"],
-    };
-    var isPowerUser = new Func<IdentityUser, bool>((user) =>
-    {
-        return user.Email.ToLower() == poweruser.Email.ToLower() || user.UserName.ToLower() == poweruser.UserName.ToLower();
-    });
+    ViewData["Title"] = "User Management";
 }
 
-<h1>Users</h1>
+<h1>User Management</h1>
 
-<table class="table">
-    <thead>
+<p class="text-muted">Manage users, their access, and PIN codes</p>
+
+<table class="table table-striped table-hover">
+    <thead class="thead-dark">
         <tr>
-            <th>
-                UserName
-            </th>
-            <th>
-                Email
-            </th>
-            <th>
-                Admin
-            </th>
-            <th>
-                Manager
-            </th>
-            <th>
-                Member
-            </th>
-            <th></th>
+            <th>Username</th>
+            <th>Email</th>
+            <th>Roles</th>
+            <th>PIN Code</th>
+            <th>PIN Status</th>
+            <th>User Status</th>
+            <th>Actions</th>
         </tr>
     </thead>
     <tbody>
         @foreach (var item in Model)
         {
-            var admin = await _userManager.IsInRoleAsync(item, "Admin");
-            var manager = await _userManager.IsInRoleAsync(item, "Manager");
-            var member = await _userManager.IsInRoleAsync(item, "Member");
-            <tr>
+            <tr class="@(item.IsLocked ? "table-warning" : "")">
                 <td>
-                    @Html.DisplayFor(modelItem => item.UserName)
-                </td>
-                <td>
-                    @Html.DisplayFor(modelItem => item.Email)
-                </td>
-                <td>
-                    @if (admin)
+                    <strong>@item.User.UserName</strong>
+                    @if (item.IsPowerUser)
                     {
-                        <input type="checkbox" checked />
+                        <span class="badge badge-danger ml-2">Power User</span>
+                    }
+                </td>
+                <td>@item.User.Email</td>
+                <td>
+                    @if (item.IsAdmin)
+                    {
+                        <span class="badge badge-primary">Admin</span>
+                    }
+                    @if (item.IsManager)
+                    {
+                        <span class="badge badge-info">Manager</span>
+                    }
+                    @if (item.IsMember)
+                    {
+                        <span class="badge badge-secondary">Member</span>
+                    }
+                </td>
+                <td>
+                    @if (item.PinCode != null)
+                    {
+                        <div>
+                            <strong>@item.PinCode.Name</strong><br />
+                            <small class="text-muted">PIN: ****</small>
+                        </div>
                     }
                     else
                     {
-                        <input type="checkbox" />
+                        <span class="text-muted">No PIN</span>
                     }
                 </td>
                 <td>
-                    @if (manager)
+                    @if (item.PinCode != null)
                     {
-                        <input type="checkbox" checked />
+                        @if (item.PinCode.Enabled)
+                        {
+                            <span class="badge badge-success">Enabled</span>
+                        }
+                        else
+                        {
+                            <span class="badge badge-secondary">Disabled</span>
+                        }
                     }
                     else
                     {
-                        <input type="checkbox" />
+                        <span class="text-muted">-</span>
                     }
                 </td>
                 <td>
-                    @if (member)
+                    @if (item.IsLocked)
                     {
-                        <input type="checkbox" checked />
+                        <span class="badge badge-warning">Locked</span>
                     }
                     else
                     {
-                        <input type="checkbox" />
+                        <span class="badge badge-success">Active</span>
                     }
                 </td>
                 <td>
-                    @if (!isPowerUser(item))
+                    @if (!item.IsPowerUser)
                     {
-                        <span>
-                            <a asp-action="Edit" asp-route-id="@item.Id">Edit</a> |
+                        <div class="btn-group" role="group">
+                            <!-- Toggle User Lock -->
+                            <form asp-action="ToggleUserLock" method="post" style="display: inline;">
+                                @Html.AntiForgeryToken()
+                                <input type="hidden" name="id" value="@item.User.Id" />
+                                @if (item.IsLocked)
+                                {
+                                    <button type="submit" class="btn btn-sm btn-success" title="Unlock User">
+                                        <i class="mdi mdi-lock-open"></i> Unlock
+                                    </button>
+                                }
+                                else
+                                {
+                                    <button type="submit" class="btn btn-sm btn-warning" title="Lock User" onclick="return confirm('Are you sure you want to lock this user?');">
+                                        <i class="mdi mdi-lock"></i> Lock
+                                    </button>
+                                }
+                            </form>
 
-                            <a asp-action="Delete" asp-route-id="@item.Id">Delete</a>
-                        </span>
+                            <!-- Toggle PIN Enabled -->
+                            @if (item.PinCode != null)
+                            {
+                                <form asp-action="TogglePinEnabled" method="post" style="display: inline;">
+                                    @Html.AntiForgeryToken()
+                                    <input type="hidden" name="userId" value="@item.User.Id" />
+                                    @if (item.PinCode.Enabled)
+                                    {
+                                        <button type="submit" class="btn btn-sm btn-secondary" title="Disable PIN">
+                                            <i class="mdi mdi-key-remove"></i> Disable PIN
+                                        </button>
+                                    }
+                                    else
+                                    {
+                                        <button type="submit" class="btn btn-sm btn-primary" title="Enable PIN">
+                                            <i class="mdi mdi-key-plus"></i> Enable PIN
+                                        </button>
+                                    }
+                                </form>
+                            }
+                            else
+                            {
+                                <a asp-action="CreatePin" asp-route-userId="@item.User.Id" class="btn btn-sm btn-primary">
+                                    <i class="mdi mdi-key-plus"></i> Create PIN
+                                </a>
+                            }
+
+                            <!-- Edit and Delete -->
+                            <a asp-action="Edit" asp-route-id="@item.User.Id" class="btn btn-sm btn-info">
+                                <i class="mdi mdi-pencil"></i> Edit
+                            </a>
+                            <a asp-action="Delete" asp-route-id="@item.User.Id" class="btn btn-sm btn-danger">
+                                <i class="mdi mdi-delete"></i> Delete
+                            </a>
+                        </div>
                     }
-                    else { 
-                    <b>Power User</b>
+                    else
+                    {
+                        <span class="text-muted">Protected</span>
                     }
                 </td>
             </tr>
         }
     </tbody>
 </table>
+
+<style>
+    .btn-group {
+        display: flex;
+        gap: 5px;
+        flex-wrap: wrap;
+    }
+    .btn-group form {
+        margin: 0;
+    }
+</style>
