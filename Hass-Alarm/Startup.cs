@@ -13,6 +13,7 @@ using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
 using HADotNet.Core;
+using Hass_Alarm.Services;
 
 namespace Hass_Alarm
 {
@@ -48,7 +49,14 @@ namespace Hass_Alarm
                 builder.AddRazorRuntimeCompilation();
             }
 #endif
+
+            // Add Memory Cache for rate limiting
+            services.AddMemoryCache();
+
+            // Add services
             services.AddSingleton<IAlarmState, AlarmState>();
+            services.AddSingleton<IRateLimitService, RateLimitService>();
+            services.AddSingleton<IPinHashingService, PinHashingService>();
         }
 
         // This method gets called by the runtime. Use this method to configure the HTTP request pipeline.

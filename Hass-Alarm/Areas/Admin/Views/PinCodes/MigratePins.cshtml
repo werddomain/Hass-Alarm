@@ -1,0 +1,83 @@
+@{
+    ViewData["Title"] = "Migrate PIN Codes to Hashed Format";
+}
+
+<h1>Migrate PIN Codes</h1>
+
+<div class="alert alert-warning" role="alert">
+    <h4 class="alert-heading">⚠️ Important Security Notice</h4>
+    <p>This tool will migrate all plain text PIN codes to a securely hashed format using BCrypt.</p>
+    <hr>
+    <p class="mb-0">
+        <strong>Warning:</strong> This is a one-way migration. Once PINs are hashed, they cannot be reverted to plain text.
+        Make sure you have a database backup before proceeding.
+    </p>
+</div>
+
+<div class="card">
+    <div class="card-body">
+        <h5 class="card-title">Migration Status</h5>
+        <table class="table table-bordered">
+            <tr>
+                <th>Total PIN Codes:</th>
+                <td><span class="badge badge-info">@ViewBag.TotalPins</span></td>
+            </tr>
+            <tr>
+                <th>Already Hashed (Secure):</th>
+                <td><span class="badge badge-success">@ViewBag.HashedPins</span></td>
+            </tr>
+            <tr>
+                <th>Plain Text (Needs Migration):</th>
+                <td><span class="badge badge-danger">@ViewBag.UnhashedPins</span></td>
+            </tr>
+        </table>
+
+        @if (ViewBag.UnhashedPins > 0)
+        {
+            <div class="alert alert-danger mt-3">
+                <strong>Action Required:</strong> You have @ViewBag.UnhashedPins PIN code(s) stored in plain text.
+                This is a security risk and should be migrated immediately.
+            </div>
+
+            <form asp-action="MigratePinsConfirm" method="post">
+                @Html.AntiForgeryToken()
+                <div class="form-group">
+                    <label>
+                        <input type="checkbox" id="confirmMigration" required />
+                        I understand that this migration is irreversible and I have a database backup
+                    </label>
+                </div>
+                <button type="submit" class="btn btn-danger" id="migrateButton" disabled>
+                    <i class="mdi mdi-lock"></i> Migrate @ViewBag.UnhashedPins PIN Code(s) to Hashed Format
+                </button>
+                <a asp-action="Index" class="btn btn-secondary">Cancel</a>
+            </form>
+        }
+        else
+        {
+            <div class="alert alert-success mt-3">
+                <strong>✅ All Clear!</strong> All PIN codes are already securely hashed. No migration needed.
+            </div>
+            <a asp-action="Index" class="btn btn-primary">Back to PIN Codes</a>
+        }
+    </div>
+</div>
+
+<div class="mt-4">
+    <h5>What does this migration do?</h5>
+    <ul>
+        <li>Converts all plain text PIN codes to BCrypt hashed format</li>
+        <li>Uses industry-standard BCrypt algorithm with work factor 12</li>
+        <li>Each PIN is hashed individually with a unique salt</li>
+        <li>Hashed PINs cannot be reversed to plain text</li>
+        <li>PIN verification will use secure hash comparison going forward</li>
+    </ul>
+</div>
+
+@section Scripts {
+    <script>
+        document.getElementById('confirmMigration').addEventListener('change', function() {
+            document.getElementById('migrateButton').disabled = !this.checked;
+        });
+    </script>
+}

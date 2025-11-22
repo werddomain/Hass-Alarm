@@ -8,6 +8,7 @@ using Microsoft.EntityFrameworkCore;
 using Hass_Alarm.Data;
 using Hass_Alarm.Data.Models;
 using Microsoft.AspNetCore.Authorization;
+using Microsoft.Extensions.Logging;
 
 namespace Hass_Alarm.Areas.Admin.Controllers
 {
@@ -15,10 +16,14 @@ namespace Hass_Alarm.Areas.Admin.Controllers
     public class PinCodesController : Controller
     {
         private readonly ApplicationDbContext _context;
+        private readonly Hass_Alarm.Services.IPinHashingService _pinHashingService;
+        private readonly ILogger<PinCodesController> _logger;
 
-        public PinCodesController(ApplicationDbContext context)
+        public PinCodesController(ApplicationDbContext context, Hass_Alarm.Services.IPinHashingService pinHashingService, ILogger<PinCodesController> logger)
         {
             _context = context;
+            _pinHashingService = pinHashingService;
+            _logger = logger;
         }
 
         // GET: Admin/PinCodes
@@ -63,8 +68,12 @@ namespace Hass_Alarm.Areas.Admin.Controllers
         {
             if (ModelState.IsValid)
             {
+                // SECURITY: Hash the PIN before storing
+                pinCode.Pin = _pinHashingService.HashPin(pinCode.Pin);
+
                 _context.Add(pinCode);
                 await _context.SaveChangesAsync();
+                _logger.LogInformation("Created PIN {PinName} (hashed)", pinCode.Name);
                 return RedirectToAction(nameof(Index));
             }
             ViewData["ActionGroupId"] = new SelectList(_context.ActionGroups, "Id", "Name", pinCode.ActionGroupId);
@@ -104,6 +113,17 @@ namespace Hass_Alarm.Areas.Admin.Controllers
             {
                 try
                 {
+                    // SECURITY: Hash the PIN before storing (if it's not already hashed)
+                    if (!_pinHashingService.IsHashed(pinCode.Pin))
+                    {
+                        pinCode.Pin = _pinHashingService.HashPin(pinCode.Pin);
+                        _logger.LogInformation("Updated PIN {PinId} (hashed)", pinCode.Id);
+                    }
+                    else
+                    {
+                        _logger.LogInformation("Updated PIN {PinId} (already hashed)", pinCode.Id);
+                    }
+
                     _context.Update(pinCode);
                     await _context.SaveChangesAsync();
                 }
@@ -157,6 +177,62 @@ namespace Hass_Alarm.Areas.Admin.Controllers
         private bool PinCodeExists(int id)
         {
             return _context.PinCodes.Any(e => e.Id == id);
+        }
+
+        // GET: Admin/PinCodes/MigratePins
+        [Authorize(Roles = "Admin")]
+        public async Task<IActionResult> MigratePins()
+        {
+            var allPins = await _context.PinCodes.ToListAsync();
+            var unhashedPins = allPins.Where(p => !_pinHashingService.IsHashed(p.Pin)).ToList();
+
+            ViewBag.TotalPins = allPins.Count;
+            ViewBag.UnhashedPins = unhashedPins.Count;
+            ViewBag.HashedPins = allPins.Count - unhashedPins.Count;
+
+            return View();
+        }
+
+        // POST: Admin/PinCodes/MigratePins
+        [HttpPost]
+        [ValidateAntiForgeryToken]
+        [Authorize(Roles = "Admin")]
+        public async Task<IActionResult> MigratePinsConfirm()
+        {
+            var allPins = await _context.PinCodes.ToListAsync();
+            int migratedCount = 0;
+            int errorCount = 0;
+
+            foreach (var pin in allPins)
+            {
+                // Check if PIN is already hashed
+                if (!_pinHashingService.IsHashed(pin.Pin))
+                {
+                    try
+                    {
+                        // Hash the plain text PIN
+                        var originalPin = pin.Pin;
+                        pin.Pin = _pinHashingService.HashPin(originalPin);
+                        migratedCount++;
+
+                        _logger.LogInformation("Migrated PIN {PinId} ({PinName}) from plain text to hashed", pin.Id, pin.Name);
+                    }
+                    catch (Exception ex)
+                    {
+                        errorCount++;
+                        _logger.LogError(ex, "Error migrating PIN {PinId} ({PinName})", pin.Id, pin.Name);
+                    }
+                }
+            }
+
+            if (migratedCount > 0)
+            {
+                await _context.SaveChangesAsync();
+                _logger.LogInformation("PIN Migration completed: {MigratedCount} PINs hashed, {ErrorCount} errors", migratedCount, errorCount);
+            }
+
+            TempData["Success"] = $"Migration completed: {migratedCount} PINs hashed successfully. {errorCount} errors occurred.";
+            return RedirectToAction(nameof(Index));
         }
     }
 }

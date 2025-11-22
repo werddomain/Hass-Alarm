@@ -19,5 +19,9 @@ namespace Hass_Alarm.Views.Home
 
         public bool code_invalid { get; set; }
 
+        // Rate limiting properties
+        public bool rate_limited { get; set; }
+        public int remaining_attempts { get; set; }
+
     }
 }
