@@ -23,18 +23,22 @@ This document tracks minor issues, technical debt, and future enhancements ident
   - `Areas/Admin/Controllers/UsersController.cs`
   - Database migration required
 
-### 2. **No Rate Limiting on PIN Attempts**
-- **Priority**: HIGH
-- **Impact**: Vulnerable to brute force attacks
-- **Recommendation**:
-  - Implement rate limiting middleware for PIN validation endpoint
-  - Add account lockout after X failed attempts
-  - Consider implementing CAPTCHA after multiple failures
-  - Log all failed attempts for security monitoring
-- **Estimated Effort**: 2-4 hours
-- **Files Affected**:
-  - `Controllers/HomeController.cs:Panel()` method
-  - New middleware class
+### 2. ~~**No Rate Limiting on PIN Attempts**~~ ✅ COMPLETED
+- **Priority**: HIGH → **COMPLETED**
+- **Status**: ✅ Implemented in Code Review #3
+- **Implementation Details**:
+  - Created `RateLimitService` with in-memory caching
+  - Limits: 5 failed attempts per IP address
+  - Block duration: 15 minutes after max attempts
+  - Attempts reset: 5 minutes of inactivity
+  - Added `rate_limited` and `remaining_attempts` to PanelModel
+  - Comprehensive logging of all attempts and blocks
+  - IP-based tracking with automatic reset on successful auth
+- **Files Added/Modified**:
+  - `Services/RateLimitService.cs` (NEW)
+  - `Controllers/HomeController.cs` (Modified)
+  - `Views/Home/PanelModel.cs` (Modified)
+  - `Startup.cs` (Modified - added MemoryCache and service registration)
 
 ---
 
@@ -199,6 +203,16 @@ This document tracks minor issues, technical debt, and future enhancements ident
 - ✅ Added TempData for user feedback messages
 - ✅ Added comprehensive logging to MyPinController
 
+### Code Review #3 (Completed)
+- ✅ **SECURITY**: Implemented rate limiting for PIN attempts
+  - Created RateLimitService with IP-based tracking
+  - 5 failed attempts limit per IP
+  - 15-minute block after max attempts
+  - 5-minute sliding window for attempt reset
+  - Automatic reset on successful authentication
+  - Added user feedback (rate_limited, remaining_attempts)
+  - Comprehensive logging of all blocked attempts
+
 ---
 
 ## 📝 Notes
@@ -208,4 +222,4 @@ This document tracks minor issues, technical debt, and future enhancements ident
 - Effort estimates are rough and may vary
 - Security issues should always be addressed first
 
-Last Updated: 2025-11-19
+Last Updated: 2025-11-22
