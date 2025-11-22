@@ -24,19 +24,22 @@ namespace Hass_Alarm.Controllers
         private readonly ApplicationDbContext _dbContext;
         private readonly IAlarmState _alarmState;
         private readonly IRateLimitService _rateLimitService;
+        private readonly IPinHashingService _pinHashingService;
 
         public HomeController(
             ILogger<HomeController> logger,
             IConfiguration configuration,
             Data.ApplicationDbContext dbContext,
             IAlarmState alarmState,
-            IRateLimitService rateLimitService)
+            IRateLimitService rateLimitService,
+            IPinHashingService pinHashingService)
         {
             _logger = logger;
             _configuration = configuration;
             _dbContext = dbContext;
             _alarmState = alarmState;
             _rateLimitService = rateLimitService;
+            _pinHashingService = pinHashingService;
         }
 
         public IActionResult Index()
@@ -83,15 +86,43 @@ namespace Hass_Alarm.Controllers
 
             if (!string.IsNullOrEmpty(model.code))
             {
-                // CRITICAL FIX: Use async query and check if PIN is enabled
-                var pin = await _dbContext.PinCodes
-                    .Where(o => o.Pin == model.code && o.Enabled)
-                    .FirstOrDefaultAsync();
+                // SECURITY: Get all enabled PIN codes and verify hash
+                var enabledPins = await _dbContext.PinCodes
+                    .Where(o => o.Enabled)
+                    .ToListAsync();
 
-                if (pin != null)
+                // Find matching PIN by verifying hash
+                Data.Models.PinCode matchedPin = null;
+                foreach (var pinCode in enabledPins)
+                {
+                    // Support both hashed and plain text PINs (for migration period)
+                    bool isMatch = false;
+
+                    if (_pinHashingService.IsHashed(pinCode.Pin))
+                    {
+                        // PIN is hashed, verify with BCrypt
+                        isMatch = _pinHashingService.VerifyPin(model.code, pinCode.Pin);
+                    }
+                    else
+                    {
+                        // PIN is plain text (legacy), compare directly
+                        isMatch = pinCode.Pin == model.code;
+
+                        // Log warning for unhashed PIN
+                        _logger.LogWarning("SECURITY: Unhashed PIN detected: {PinId}. Please migrate to hashed PINs.", pinCode.Id);
+                    }
+
+                    if (isMatch)
+                    {
+                        matchedPin = pinCode;
+                        break;
+                    }
+                }
+
+                if (matchedPin != null)
                 {
                     model.code_invalid = false;
-                    _logger.LogInformation("Valid PIN entered: {PinName} from IP: {IpAddress}", pin.Name, ipAddress);
+                    _logger.LogInformation("Valid PIN entered: {PinName} from IP: {IpAddress}", matchedPin.Name, ipAddress);
 
                     // SECURITY: Reset failed attempts on successful authentication
                     _rateLimitService.ResetAttempts(ipAddress);
@@ -103,22 +134,22 @@ namespace Hass_Alarm.Controllers
                         {
                             case "arm":
                                 await _alarmState.SetArmState(AlarmState.Armed);
-                                _logger.LogInformation("Alarm armed by PIN: {PinName} from IP: {IpAddress}", pin.Name, ipAddress);
+                                _logger.LogInformation("Alarm armed by PIN: {PinName} from IP: {IpAddress}", matchedPin.Name, ipAddress);
                                 break;
 
                             case "disarm":
                                 await _alarmState.SetArmState(AlarmState.Disarmed);
-                                _logger.LogInformation("Alarm disarmed by PIN: {PinName} from IP: {IpAddress}", pin.Name, ipAddress);
+                                _logger.LogInformation("Alarm disarmed by PIN: {PinName} from IP: {IpAddress}", matchedPin.Name, ipAddress);
                                 break;
 
                             case "arm_home":
                                 await _alarmState.SetArmState(AlarmState.ArmedHome);
-                                _logger.LogInformation("Alarm armed (home) by PIN: {PinName} from IP: {IpAddress}", pin.Name, ipAddress);
+                                _logger.LogInformation("Alarm armed (home) by PIN: {PinName} from IP: {IpAddress}", matchedPin.Name, ipAddress);
                                 break;
 
                             case "unlock":
                                 // Unlock action - could be used for other purposes
-                                _logger.LogInformation("Unlock requested by PIN: {PinName} from IP: {IpAddress}", pin.Name, ipAddress);
+                                _logger.LogInformation("Unlock requested by PIN: {PinName} from IP: {IpAddress}", matchedPin.Name, ipAddress);
                                 break;
 
                             default:

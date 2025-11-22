@@ -16,12 +16,14 @@ namespace Hass_Alarm.Controllers
         private readonly ApplicationDbContext _dbContext;
         private readonly UserManager<IdentityUser> _userManager;
         private readonly ILogger<MyPinController> _logger;
+        private readonly Services.IPinHashingService _pinHashingService;
 
-        public MyPinController(ApplicationDbContext dbContext, UserManager<IdentityUser> userManager, ILogger<MyPinController> logger)
+        public MyPinController(ApplicationDbContext dbContext, UserManager<IdentityUser> userManager, ILogger<MyPinController> logger, Services.IPinHashingService pinHashingService)
         {
             _dbContext = dbContext;
             _userManager = userManager;
             _logger = logger;
+            _pinHashingService = pinHashingService;
         }
         public async Task<IActionResult> Index()
         {
@@ -57,6 +59,9 @@ namespace Hass_Alarm.Controllers
 
             if (ModelState.IsValid)
             {
+                // SECURITY: Hash the PIN before storing
+                var hashedPin = _pinHashingService.HashPin(model.Pin);
+
                 // MEDIUM FIX: Use async query
                 var pin = await _dbContext.PinCodes.FirstOrDefaultAsync(o => o.UserId == myUserId);
 
@@ -68,22 +73,22 @@ namespace Hass_Alarm.Controllers
                         Name = model.Name,
                         ActionGroupId = model.ActionGroupId,
                         Enabled = model.Enabled,
-                        Pin = model.Pin,
+                        Pin = hashedPin, // Store hashed PIN
                         UserId = myUserId
                     });
 
-                    _logger.LogInformation("User {UserId} created a new PIN", myUserId);
+                    _logger.LogInformation("User {UserId} created a new PIN (hashed)", myUserId);
                     TempData["Success"] = "Your PIN has been created successfully.";
                 }
                 else
                 {
                     // Update existing PIN
                     pin.Name = model.Name;
-                    pin.Pin = model.Pin;
+                    pin.Pin = hashedPin; // Store hashed PIN
                     pin.Enabled = model.Enabled;
                     pin.ActionGroupId = model.ActionGroupId;
 
-                    _logger.LogInformation("User {UserId} updated their PIN", myUserId);
+                    _logger.LogInformation("User {UserId} updated their PIN (hashed)", myUserId);
                     TempData["Success"] = "Your PIN has been updated successfully.";
                 }
 

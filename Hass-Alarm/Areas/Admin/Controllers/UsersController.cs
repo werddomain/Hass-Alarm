@@ -22,19 +22,22 @@ namespace Hass_Alarm.Areas.Admin.Controllers
         private readonly IConfiguration _configuration;
         private readonly ApplicationDbContext _context;
         private readonly ILogger<UsersController> _logger;
+        private readonly Hass_Alarm.Services.IPinHashingService _pinHashingService;
 
         public UsersController(
             UserManager<IdentityUser> userManager,
             RoleManager<IdentityRole> roleManager,
             IConfiguration configuration,
             ApplicationDbContext context,
-            ILogger<UsersController> logger)
+            ILogger<UsersController> logger,
+            Hass_Alarm.Services.IPinHashingService pinHashingService)
         {
             _userManager = userManager;
             _roleManager = roleManager;
             _configuration = configuration;
             _context = context;
             _logger = logger;
+            _pinHashingService = pinHashingService;
         }
 
         private bool IsPowerUser(IdentityUser user)
@@ -362,9 +365,12 @@ namespace Hass_Alarm.Areas.Admin.Controllers
 
             if (ModelState.IsValid)
             {
+                // SECURITY: Hash the PIN before storing
+                pinCode.Pin = _pinHashingService.HashPin(pinCode.Pin);
+
                 _context.Add(pinCode);
                 await _context.SaveChangesAsync();
-                _logger.LogInformation("Created PIN {PinName} for user {UserId}", pinCode.Name, pinCode.UserId);
+                _logger.LogInformation("Created PIN {PinName} for user {UserId} (hashed)", pinCode.Name, pinCode.UserId);
                 TempData["Success"] = $"PIN {pinCode.Name} created successfully.";
                 return RedirectToAction("Index");
             }
