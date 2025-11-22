@@ -1,0 +1,59 @@
+{
+  "name": "Hass-Alarm Panel",
+  "version": "1.0.0",
+  "slug": "hass-alarm",
+  "description": "Advanced alarm control panel with PIN authentication, plugin support, and headless tablet interface",
+  "arch": ["armhf", "armv7", "aarch64", "amd64", "i386"],
+  "startup": "application",
+  "boot": "auto",
+  "init": false,
+  "ports": {
+    "80/tcp": 8099
+  },
+  "ports_description": {
+    "80/tcp": "Web interface port"
+  },
+  "webui": "http://[HOST]:[PORT:8099]/HeadlessPanel",
+  "ingress": true,
+  "ingress_port": 80,
+  "panel_icon": "mdi:shield-lock",
+  "homeassistant_api": true,
+  "hassio_api": true,
+  "hassio_role": "default",
+  "auth_api": true,
+  "options": {
+    "ha_host": "homeassistant.local:8123",
+    "ha_use_ssl": false,
+    "entities": {
+      "arm": "input_boolean.alarm_home",
+      "arm_home": "input_boolean.alarm_ar"
+    },
+    "admin": {
+      "email": "admin@hassalarm.local",
+      "password": "ChangeMe123!"
+    },
+    "security": {
+      "allowed_ip_range": "",
+      "enable_rate_limiting": true
+    }
+  },
+  "schema": {
+    "ha_host": "str",
+    "ha_use_ssl": "bool",
+    "entities": {
+      "arm": "str",
+      "arm_home": "str"
+    },
+    "admin": {
+      "email": "email",
+      "password": "password"
+    },
+    "security": {
+      "allowed_ip_range": "str?",
+      "enable_rate_limiting": "bool"
+    }
+  },
+  "image": "ghcr.io/werddomain/hass-alarm-{arch}",
+  "url": "https://github.com/werddomain/Hass-Alarm",
+  "backup": "hot"
+}

@@ -1,0 +1,56 @@
+#!/usr/bin/with-contenv bashio
+# ==============================================================================
+# Start Hass-Alarm service
+# ==============================================================================
+
+bashio::log.info "Starting Hass-Alarm Panel..."
+
+# Get configuration from add-on options
+HA_HOST=$(bashio::config 'ha_host')
+HA_USE_SSL=$(bashio::config 'ha_use_ssl')
+ENTITY_ARM=$(bashio::config 'entities.arm')
+ENTITY_ARM_HOME=$(bashio::config 'entities.arm_home')
+ADMIN_EMAIL=$(bashio::config 'admin.email')
+ADMIN_PASSWORD=$(bashio::config 'admin.password')
+ALLOWED_IP_RANGE=$(bashio::config 'security.allowed_ip_range')
+
+# Get Home Assistant API token (from Supervisor)
+HA_TOKEN="${SUPERVISOR_TOKEN}"
+
+# Construct Home Assistant URL
+if bashio::var.true "${HA_USE_SSL}"; then
+    HA_URL="https://${HA_HOST}/"
+else
+    HA_URL="http://${HA_HOST}/"
+fi
+
+# Export environment variables for the application
+export ConnectionStrings__DefaultConnection="Server=/data/hass-alarm.db;Database=hass-alarm;Integrated Security=true;"
+export Ha__Host="${HA_URL}"
+export Ha__ApiKey="${HA_TOKEN}"
+export Ha__Entities__Arm="${ENTITY_ARM}"
+export Ha__Entities__ArmHome="${ENTITY_ARM_HOME}"
+export Admin__Email="${ADMIN_EMAIL}"
+export Admin__Password="${ADMIN_PASSWORD}"
+
+# Set IP range if provided
+if bashio::var.has_value "${ALLOWED_IP_RANGE}"; then
+    export Security__AllowedIpRange="${ALLOWED_IP_RANGE}"
+fi
+
+# Create data directory if it doesn't exist
+if [[ ! -d /data ]]; then
+    mkdir -p /data
+fi
+
+# Navigate to application directory
+cd /app || exit 1
+
+bashio::log.info "Configuration loaded successfully"
+bashio::log.info "Home Assistant URL: ${HA_URL}"
+bashio::log.info "Arm Entity: ${ENTITY_ARM}"
+bashio::log.info "Arm Home Entity: ${ENTITY_ARM_HOME}"
+
+# Start the application
+bashio::log.info "Starting Hass-Alarm application..."
+exec dotnet Hass-Alarm.dll
