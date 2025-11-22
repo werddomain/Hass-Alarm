@@ -1,0 +1,491 @@
+@{
+    Layout = null;
+}
+
+<!doctype html>
+<html lang="en">
+<head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1, shrink-to-fit=no, user-scalable=no">
+    <title>Alarm Panel - Headless Mode</title>
+
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/MaterialDesign-Webfont/4.9.95/css/materialdesignicons.min.css">
+
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+            background: #1a1a1a;
+            color: #ffffff;
+            height: 100vh;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            overflow: hidden;
+        }
+
+        .container {
+            width: 100%;
+            max-width: 600px;
+            padding: 20px;
+        }
+
+        .status-display {
+            text-align: center;
+            margin-bottom: 40px;
+        }
+
+        .status-icon {
+            font-size: 120px;
+            margin-bottom: 20px;
+        }
+
+        .status-text {
+            font-size: 36px;
+            font-weight: 600;
+            text-transform: uppercase;
+            letter-spacing: 2px;
+        }
+
+        .status-disarmed {
+            color: #4caf50;
+        }
+
+        .status-armed {
+            color: #f44336;
+        }
+
+        .status-armed-home {
+            color: #ff9800;
+        }
+
+        .auth-panel {
+            background: #2a2a2a;
+            border-radius: 12px;
+            padding: 30px;
+            box-shadow: 0 4px 20px rgba(0,0,0,0.3);
+        }
+
+        .device-input {
+            margin-bottom: 20px;
+        }
+
+        .device-input input {
+            width: 100%;
+            padding: 15px;
+            font-size: 18px;
+            border: 2px solid #444;
+            border-radius: 8px;
+            background: #333;
+            color: #fff;
+            outline: none;
+            transition: border-color 0.3s;
+        }
+
+        .device-input input:focus {
+            border-color: #4caf50;
+        }
+
+        .pin-display {
+            text-align: center;
+            font-size: 48px;
+            font-weight: bold;
+            letter-spacing: 10px;
+            margin-bottom: 30px;
+            min-height: 60px;
+            color: #4caf50;
+        }
+
+        .keypad {
+            display: grid;
+            grid-template-columns: repeat(3, 1fr);
+            gap: 15px;
+            margin-bottom: 20px;
+        }
+
+        .key {
+            background: #333;
+            border: none;
+            color: #fff;
+            font-size: 28px;
+            font-weight: 600;
+            padding: 25px;
+            border-radius: 8px;
+            cursor: pointer;
+            transition: all 0.2s;
+            outline: none;
+        }
+
+        .key:hover {
+            background: #444;
+            transform: scale(1.05);
+        }
+
+        .key:active {
+            background: #555;
+            transform: scale(0.95);
+        }
+
+        .key.clear {
+            background: #f44336;
+        }
+
+        .key.clear:hover {
+            background: #d32f2f;
+        }
+
+        .action-buttons {
+            display: grid;
+            grid-template-columns: repeat(3, 1fr);
+            gap: 15px;
+            margin-top: 20px;
+        }
+
+        .action-btn {
+            padding: 20px;
+            font-size: 18px;
+            font-weight: 600;
+            border: none;
+            border-radius: 8px;
+            cursor: pointer;
+            transition: all 0.2s;
+            outline: none;
+            text-transform: uppercase;
+        }
+
+        .btn-disarm {
+            background: #4caf50;
+            color: white;
+        }
+
+        .btn-disarm:hover {
+            background: #43a047;
+        }
+
+        .btn-arm {
+            background: #f44336;
+            color: white;
+        }
+
+        .btn-arm:hover {
+            background: #d32f2f;
+        }
+
+        .btn-arm-home {
+            background: #ff9800;
+            color: white;
+        }
+
+        .btn-arm-home:hover {
+            background: #f57c00;
+        }
+
+        .error-message {
+            background: #f44336;
+            color: white;
+            padding: 15px;
+            border-radius: 8px;
+            margin-bottom: 20px;
+            text-align: center;
+            display: none;
+        }
+
+        .info-message {
+            background: #2196f3;
+            color: white;
+            padding: 15px;
+            border-radius: 8px;
+            margin-bottom: 20px;
+            text-align: center;
+            display: none;
+        }
+
+        .hidden {
+            display: none !important;
+        }
+
+        .locked-panel {
+            display: none;
+        }
+
+        .unlocked-panel {
+            display: none;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="status-display">
+            <div class="status-icon">
+                <i id="statusIcon" class="mdi mdi-shield-check status-disarmed"></i>
+            </div>
+            <div class="status-text" id="statusText">Loading...</div>
+        </div>
+
+        <div class="error-message" id="errorMessage"></div>
+        <div class="info-message" id="infoMessage"></div>
+
+        <div class="auth-panel locked-panel" id="lockedPanel">
+            <div class="device-input">
+                <input type="text" id="deviceName" placeholder="Enter Device/Tablet Name" autocomplete="off">
+            </div>
+            <div class="pin-display" id="pinDisplay">****</div>
+            <div class="keypad">
+                <button class="key" data-value="1">1</button>
+                <button class="key" data-value="2">2</button>
+                <button class="key" data-value="3">3</button>
+                <button class="key" data-value="4">4</button>
+                <button class="key" data-value="5">5</button>
+                <button class="key" data-value="6">6</button>
+                <button class="key" data-value="7">7</button>
+                <button class="key" data-value="8">8</button>
+                <button class="key" data-value="9">9</button>
+                <button class="key clear" data-value="clear">C</button>
+                <button class="key" data-value="0">0</button>
+                <button class="key" data-value="enter">✓</button>
+            </div>
+        </div>
+
+        <div class="auth-panel unlocked-panel" id="unlockedPanel">
+            <div class="action-buttons">
+                <button class="action-btn btn-disarm" data-action="disarm">Disarm</button>
+                <button class="action-btn btn-arm" data-action="arm">Arm</button>
+                <button class="action-btn btn-arm-home" data-action="arm_home">Arm Home</button>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        class HeadlessAlarmPanel {
+            constructor() {
+                this.pin = '';
+                this.sessionToken = localStorage.getItem('sessionToken');
+                this.deviceName = localStorage.getItem('deviceName') || '';
+                this.init();
+            }
+
+            init() {
+                this.setupEventListeners();
+                if (this.sessionToken) {
+                    this.validateSession();
+                } else {
+                    this.showLockedPanel();
+                }
+                this.updateState();
+                setInterval(() => this.updateState(), 5000);
+            }
+
+            setupEventListeners() {
+                document.querySelectorAll('.key').forEach(key => {
+                    key.addEventListener('click', () => this.handleKeyPress(key.dataset.value));
+                });
+
+                document.querySelectorAll('.action-btn').forEach(btn => {
+                    btn.addEventListener('click', () => this.handleAction(btn.dataset.action));
+                });
+
+                const deviceInput = document.getElementById('deviceName');
+                deviceInput.value = this.deviceName;
+                deviceInput.addEventListener('input', (e) => {
+                    this.deviceName = e.target.value;
+                    localStorage.setItem('deviceName', this.deviceName);
+                });
+            }
+
+            handleKeyPress(value) {
+                if (value === 'clear') {
+                    this.pin = '';
+                } else if (value === 'enter') {
+                    this.authenticate();
+                } else {
+                    if (this.pin.length < 8) {
+                        this.pin += value;
+                    }
+                }
+                this.updatePinDisplay();
+            }
+
+            updatePinDisplay() {
+                const display = document.getElementById('pinDisplay');
+                display.textContent = this.pin ? '*'.repeat(this.pin.length) : '****';
+            }
+
+            async authenticate() {
+                if (!this.deviceName) {
+                    this.showError('Please enter a device name');
+                    return;
+                }
+
+                if (!this.pin) {
+                    this.showError('Please enter a PIN');
+                    return;
+                }
+
+                try {
+                    const response = await fetch('/HeadlessPanel/Authenticate', {
+                        method: 'POST',
+                        headers: {
+                            'Content-Type': 'application/json',
+                        },
+                        body: JSON.stringify({
+                            pin: this.pin,
+                            deviceName: this.deviceName
+                        })
+                    });
+
+                    const data = await response.json();
+
+                    if (data.success) {
+                        this.sessionToken = data.session_token;
+                        localStorage.setItem('sessionToken', this.sessionToken);
+                        this.showUnlockedPanel();
+                        this.showInfo('Authentication successful');
+                        this.updateState();
+                    } else {
+                        this.showError(data.error || 'Authentication failed');
+                        if (data.remaining_attempts !== undefined) {
+                            this.showError(`${data.error}. ${data.remaining_attempts} attempts remaining.`);
+                        }
+                    }
+                } catch (error) {
+                    this.showError('Network error. Please try again.');
+                }
+
+                this.pin = '';
+                this.updatePinDisplay();
+            }
+
+            async validateSession() {
+                try {
+                    const response = await fetch(`/HeadlessPanel/GetState?sessionToken=${this.sessionToken}`);
+                    const data = await response.json();
+
+                    if (data.success) {
+                        this.showUnlockedPanel();
+                    } else {
+                        localStorage.removeItem('sessionToken');
+                        this.sessionToken = null;
+                        this.showLockedPanel();
+                    }
+                } catch (error) {
+                    this.showLockedPanel();
+                }
+            }
+
+            async handleAction(action) {
+                if (!this.sessionToken) {
+                    this.showError('Session expired. Please authenticate again.');
+                    this.showLockedPanel();
+                    return;
+                }
+
+                try {
+                    const response = await fetch('/HeadlessPanel/SetState', {
+                        method: 'POST',
+                        headers: {
+                            'Content-Type': 'application/json',
+                        },
+                        body: JSON.stringify({
+                            sessionToken: this.sessionToken,
+                            action: action
+                        })
+                    });
+
+                    const data = await response.json();
+
+                    if (data.success) {
+                        this.showInfo(`Alarm ${data.new_state.replace('_', ' ')}`);
+                        this.updateState();
+                    } else {
+                        this.showError(data.error || 'Action failed');
+                        if (data.error === 'Invalid or expired session') {
+                            localStorage.removeItem('sessionToken');
+                            this.sessionToken = null;
+                            this.showLockedPanel();
+                        }
+                    }
+                } catch (error) {
+                    this.showError('Network error. Please try again.');
+                }
+            }
+
+            async updateState() {
+                if (!this.sessionToken) {
+                    document.getElementById('statusText').textContent = 'Not Authenticated';
+                    return;
+                }
+
+                try {
+                    const response = await fetch(`/HeadlessPanel/GetState?sessionToken=${this.sessionToken}`);
+                    const data = await response.json();
+
+                    if (data.success) {
+                        this.updateStatusDisplay(data.state_name);
+                    }
+                } catch (error) {
+                    console.error('Error updating state:', error);
+                }
+            }
+
+            updateStatusDisplay(state) {
+                const icon = document.getElementById('statusIcon');
+                const text = document.getElementById('statusText');
+
+                icon.className = 'mdi ';
+                text.className = 'status-text ';
+
+                switch (state) {
+                    case 'disarm':
+                        icon.classList.add('mdi-shield-check', 'status-disarmed');
+                        text.classList.add('status-disarmed');
+                        text.textContent = 'Disarmed';
+                        break;
+                    case 'arm':
+                        icon.classList.add('mdi-shield-lock', 'status-armed');
+                        text.classList.add('status-armed');
+                        text.textContent = 'Armed';
+                        break;
+                    case 'arm_home':
+                        icon.classList.add('mdi-shield-home', 'status-armed-home');
+                        text.classList.add('status-armed-home');
+                        text.textContent = 'Armed Home';
+                        break;
+                }
+            }
+
+            showLockedPanel() {
+                document.getElementById('lockedPanel').style.display = 'block';
+                document.getElementById('unlockedPanel').style.display = 'none';
+            }
+
+            showUnlockedPanel() {
+                document.getElementById('lockedPanel').style.display = 'none';
+                document.getElementById('unlockedPanel').style.display = 'block';
+            }
+
+            showError(message) {
+                const errorEl = document.getElementById('errorMessage');
+                errorEl.textContent = message;
+                errorEl.style.display = 'block';
+                setTimeout(() => errorEl.style.display = 'none', 5000);
+            }
+
+            showInfo(message) {
+                const infoEl = document.getElementById('infoMessage');
+                infoEl.textContent = message;
+                infoEl.style.display = 'block';
+                setTimeout(() => infoEl.style.display = 'none', 3000);
+            }
+        }
+
+        document.addEventListener('DOMContentLoaded', () => {
+            new HeadlessAlarmPanel();
+        });
+    </script>
+</body>
+</html>

@@ -1,0 +1,197 @@
+name: Build and Publish Add-on
+
+on:
+  push:
+    branches:
+      - main
+    tags:
+      - 'v*.*.*'
+  pull_request:
+    branches:
+      - main
+  workflow_dispatch:
+
+env:
+  REGISTRY: ghcr.io
+
+jobs:
+  information:
+    name: Gather add-on information
+    runs-on: ubuntu-latest
+    outputs:
+      version: ${{ steps.information.outputs.version }}
+      build_date: ${{ steps.information.outputs.build_date }}
+      architectures: ${{ steps.information.outputs.architectures }}
+      name: ${{ steps.information.outputs.name }}
+      description: ${{ steps.information.outputs.description }}
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Get add-on information
+        id: information
+        run: |
+          if [[ "${{ github.ref }}" == refs/tags/v* ]]; then
+            VERSION="${GITHUB_REF#refs/tags/v}"
+          else
+            VERSION=$(jq -r '.version' hass-alarm/config.json)
+          fi
+
+          echo "version=${VERSION}" >> $GITHUB_OUTPUT
+          echo "build_date=$(date -u +'%Y-%m-%dT%H:%M:%SZ')" >> $GITHUB_OUTPUT
+          echo "architectures=$(jq -r '.arch | join(" ")' hass-alarm/config.json)" >> $GITHUB_OUTPUT
+          echo "name=$(jq -r '.name' hass-alarm/config.json)" >> $GITHUB_OUTPUT
+          echo "description=$(jq -r '.description' hass-alarm/config.json)" >> $GITHUB_OUTPUT
+
+  build:
+    name: Build ${{ matrix.arch }} add-on
+    needs: information
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      packages: write
+    strategy:
+      matrix:
+        arch: [aarch64, amd64, armhf, armv7, i386]
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Set up QEMU
+        uses: docker/setup-qemu-action@v3
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      - name: Log in to Container Registry
+        if: github.event_name != 'pull_request'
+        uses: docker/login-action@v3
+        with:
+          registry: ${{ env.REGISTRY }}
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Build and push
+        uses: docker/build-push-action@v5
+        with:
+          context: .
+          file: hass-alarm/Dockerfile
+          platforms: linux/${{ matrix.arch }}
+          push: ${{ github.event_name != 'pull_request' }}
+          tags: |
+            ${{ env.REGISTRY }}/${{ github.repository_owner }}/hass-alarm-${{ matrix.arch }}:latest
+            ${{ env.REGISTRY }}/${{ github.repository_owner }}/hass-alarm-${{ matrix.arch }}:${{ needs.information.outputs.version }}
+          build-args: |
+            BUILD_FROM=ghcr.io/hassio-addons/base-${{ matrix.arch }}:15.0.1
+            BUILD_ARCH=${{ matrix.arch }}
+            BUILD_VERSION=${{ needs.information.outputs.version }}
+            BUILD_DATE=${{ needs.information.outputs.build_date }}
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
+
+  release:
+    name: Create GitHub Release
+    needs: [information, build]
+    runs-on: ubuntu-latest
+    if: github.ref == 'refs/heads/main' && github.event_name == 'push'
+    permissions:
+      contents: write
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Update config.json version
+        if: startsWith(github.ref, 'refs/tags/v')
+        run: |
+          VERSION="${GITHUB_REF#refs/tags/v}"
+          jq --arg version "$VERSION" '.version = $version' hass-alarm/config.json > hass-alarm/config.json.tmp
+          mv hass-alarm/config.json.tmp hass-alarm/config.json
+
+      - name: Generate changelog
+        id: changelog
+        run: |
+          # Get the last tag
+          LAST_TAG=$(git describe --tags --abbrev=0 2>/dev/null || echo "")
+
+          if [ -z "$LAST_TAG" ]; then
+            CHANGELOG=$(git log --pretty=format:"- %s" --no-merges)
+          else
+            CHANGELOG=$(git log ${LAST_TAG}..HEAD --pretty=format:"- %s" --no-merges)
+          fi
+
+          # Escape special characters for GitHub Actions
+          CHANGELOG="${CHANGELOG//'%'/'%25'}"
+          CHANGELOG="${CHANGELOG//$'\n'/'%0A'}"
+          CHANGELOG="${CHANGELOG//$'\r'/'%0D'}"
+
+          echo "changelog<<EOF" >> $GITHUB_OUTPUT
+          echo "$CHANGELOG" >> $GITHUB_OUTPUT
+          echo "EOF" >> $GITHUB_OUTPUT
+
+      - name: Create Release
+        uses: actions/create-release@v1
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        with:
+          tag_name: v${{ needs.information.outputs.version }}
+          release_name: Hass-Alarm v${{ needs.information.outputs.version }}
+          body: |
+            ## ${{ needs.information.outputs.name }} v${{ needs.information.outputs.version }}
+
+            ${{ needs.information.outputs.description }}
+
+            ### Changes
+            ${{ steps.changelog.outputs.changelog }}
+
+            ### Installation
+
+            Add this repository to your Home Assistant add-on store:
+
+            ```
+            https://github.com/${{ github.repository }}
+            ```
+
+            ### Supported Architectures
+            - aarch64
+            - amd64
+            - armhf
+            - armv7
+            - i386
+
+            ### Docker Images
+
+            Images are available at:
+            - `ghcr.io/${{ github.repository_owner }}/hass-alarm-{arch}:${{ needs.information.outputs.version }}`
+            - `ghcr.io/${{ github.repository_owner }}/hass-alarm-{arch}:latest`
+          draft: false
+          prerelease: false
+
+  update-repository:
+    name: Update repository.json
+    needs: [information, build, release]
+    runs-on: ubuntu-latest
+    if: github.ref == 'refs/heads/main' && github.event_name == 'push'
+    permissions:
+      contents: write
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Update repository.json
+        run: |
+          cat > repository.json <<EOF
+          {
+            "name": "Hass-Alarm Add-ons",
+            "url": "https://github.com/${{ github.repository }}",
+            "maintainer": "${{ github.repository_owner }}"
+          }
+          EOF
+
+      - name: Commit and push if changed
+        run: |
+          git config --global user.name 'GitHub Actions'
+          git config --global user.email 'actions@github.com'
+          git add repository.json
+          git diff --quiet && git diff --staged --quiet || (git commit -m "Update repository.json [skip ci]" && git push)

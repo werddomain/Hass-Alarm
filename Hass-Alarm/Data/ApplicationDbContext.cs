@@ -17,6 +17,8 @@ namespace Hass_Alarm.Data
         public DbSet<PinCode> PinCodes { get; set; }
         public DbSet<Models.Action> Actions { get; set; }
         public DbSet<ActionGroup> ActionGroups { get; set; }
+        public DbSet<Device> Devices { get; set; }
+        public DbSet<PanelSession> PanelSessions { get; set; }
 
 
     }

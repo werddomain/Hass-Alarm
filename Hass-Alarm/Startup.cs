@@ -57,6 +57,8 @@ namespace Hass_Alarm
             services.AddSingleton<IAlarmState, AlarmState>();
             services.AddSingleton<IRateLimitService, RateLimitService>();
             services.AddSingleton<IPinHashingService, PinHashingService>();
+            services.AddScoped<ISessionService, SessionService>();
+            services.AddScoped<IHomeAssistantEventService, HomeAssistantEventService>();
         }
 
         // This method gets called by the runtime. Use this method to configure the HTTP request pipeline.

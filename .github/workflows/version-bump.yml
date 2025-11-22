@@ -1,0 +1,58 @@
+name: Version Bump
+
+on:
+  workflow_dispatch:
+    inputs:
+      version_type:
+        description: 'Version bump type'
+        required: true
+        type: choice
+        options:
+          - patch
+          - minor
+          - major
+        default: 'patch'
+
+jobs:
+  bump:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+
+      - name: Install semver
+        run: npm install -g semver
+
+      - name: Bump version
+        id: bump
+        run: |
+          CURRENT_VERSION=$(jq -r '.version' hass-alarm/config.json)
+          NEW_VERSION=$(semver -i ${{ github.event.inputs.version_type }} $CURRENT_VERSION)
+
+          echo "Current version: $CURRENT_VERSION"
+          echo "New version: $NEW_VERSION"
+
+          # Update config.json
+          jq --arg version "$NEW_VERSION" '.version = $version' hass-alarm/config.json > hass-alarm/config.json.tmp
+          mv hass-alarm/config.json.tmp hass-alarm/config.json
+
+          echo "new_version=$NEW_VERSION" >> $GITHUB_OUTPUT
+
+      - name: Commit and push
+        run: |
+          git config --global user.name 'GitHub Actions'
+          git config --global user.email 'actions@github.com'
+          git add hass-alarm/config.json
+          git commit -m "Bump version to ${{ steps.bump.outputs.new_version }}"
+          git tag -a "v${{ steps.bump.outputs.new_version }}" -m "Release v${{ steps.bump.outputs.new_version }}"
+          git push origin main
+          git push origin "v${{ steps.bump.outputs.new_version }}"
